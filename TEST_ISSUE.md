@@ -11,3 +11,4 @@ The unit and integration tests validate the following:
 3. **Lazy Cooldown Transition**: Assuring an open circuit correctly progresses to `half-open` once cooldown times out.
 4. **Half-Open Gates**: Guaranteeing probe request limits and immediate fail-back to `open` upon any probe failure.
 5. **Fallback Routing**: Confirming degraded payloads are gracefully routed.
+asd
