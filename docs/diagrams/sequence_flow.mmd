@@ -1,0 +1,33 @@
+sequenceDiagram
+    autonumber
+    actor Caller as Client Application
+    participant Client as ResilientHttpClient
+    participant CB as CircuitBreaker
+    participant Store as FailureStore (Redis)
+    participant Exec as HttpExecutor
+    participant Fallback as FallbackHandler
+
+    Caller->>Client: request("GET", "/checkout")
+    Client->>CB: is_open()
+    CB->>Store: get_state()
+    Store-->>CB: "closed"
+    CB-->>Client: False (Request allowed)
+    
+    rect rgb(240, 248, 255)
+        Note over Client, Exec: Attempt 1
+        Client->>Exec: send("GET", "/checkout")
+        Exec-->>Client: Connection Timeout
+        Client->>CB: on_failure()
+        CB->>Store: increment_failures()
+    end
+
+    rect rgb(255, 240, 240)
+        Note over Client, CB: Final Retry Exhausted (threshold reached)
+        Client->>CB: maybe_open()
+        CB->>Store: get_failures()
+        Store-->>CB: 5 (threshold reached)
+        CB->>Store: set_state("open", ttl=cooldown)
+        CB-->>Client: Trips Circuit Open
+        Client->>Fallback: run("timeout")
+        Fallback-->>Caller: Returns Fallback Payload (Degraded state)
+    end
