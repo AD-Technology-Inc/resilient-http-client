@@ -1,0 +1,13 @@
+flowchart LR
+    R["Incoming Request"]
+    R -->|"1"| A["Circuit state = HALF_OPEN"]
+    A -->|"2"| B{"Half-open request allowed?"}
+    B -->|"3. No"| C["Reject request"]
+    B -->|"3. Yes"| D{"Request successful?"}
+    D -->|"4. No"| E["Set state = OPEN"]
+    E -->|"5"| F["Reset half-open counters"]
+    D -->|"4. Yes"| G["Increment success_count"]
+    G -->|"6"| H{"success_count >= success_needed?"}
+    H -->|"7. Yes"| I["Set state = CLOSED"]
+    I -->|"8"| J["Reset half-open counters"]
+    H -->|"7. No"| K["Remain HALF_OPEN"]

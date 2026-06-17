@@ -1,14 +1,7 @@
-```mermaid
 flowchart LR
     R["Incoming Request"]
-
     R -->|"1"| A["Circuit state = OPEN"]
-
     A -->|"2"| B{"Open timeout expired?"}
-
     B -->|"3. No"| C["Reject immediately (fail fast)"]
-
     B -->|"3. Yes"| D["Transition to HALF_OPEN"]
-
     C -->|"4"| G["Return error response (e.g., 503 / fallback)"]
-```
