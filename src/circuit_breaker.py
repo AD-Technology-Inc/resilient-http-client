@@ -90,5 +90,5 @@ class CircuitBreaker:
         if state == CircuitState.HALF_OPEN.value:
             await self.trip_open()
         else:
-           await self.store.increment_failures()
+            await self.store.increment_failures()
             await self.maybe_open()
