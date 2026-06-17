@@ -278,10 +278,25 @@ pytest
 
 ## 📚 Examples
 
-The `examples/` directory contains complete demonstrations and integrations:
+The `examples/` directory contains complete demonstrations and integrations.
 
+### How to run examples
+
+1. Start Redis:
+   ```bash
+   docker compose up -d
+   ```
+
+2. Run the example:
+   ```bash
+   PYTHONPATH=. uv run python examples/slack_example.py
+   ```
+
+Available examples:
 * `fastapi_integration.py`
 * `simulate_outage.py`
+* `slack_example.py`
+* `stripe_example.py`
 
 ---
 
