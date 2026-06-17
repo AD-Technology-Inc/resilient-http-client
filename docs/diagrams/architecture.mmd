@@ -1,0 +1,17 @@
+flowchart TD
+    classDef main fill:#1E88E5,stroke:#1565C0,stroke-width:2px,color:#fff;
+    classDef support fill:#43A047,stroke:#2E7D32,stroke-width:2px,color:#fff;
+    classDef store fill:#E53935,stroke:#C62828,stroke-width:2px,color:#fff;
+
+    Client["ResilientHttpClient"]:::main
+    CB["CircuitBreaker"]:::main
+    Store["FailureStore (Redis-backed)"]:::store
+    Retry["RetryPolicy"]:::support
+    Fallback["FallbackHandler"]:::support
+    Executor["HttpExecutor (httpx)"]:::support
+
+    Client -->|1. Check State / Record metrics| CB
+    Client -->|2. Manage retry attempts| Retry
+    Client -->|3. Fallback on final error| Fallback
+    Client -->|4. Dispatch requests| Executor
+    CB -->|Query & persist state / counters| Store

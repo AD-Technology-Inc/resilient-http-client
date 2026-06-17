@@ -1,0 +1,11 @@
+stateDiagram-v2
+    [*] --> Closed : Initial State
+    
+    Closed --> Open : failures >= threshold\n[maybe_open() / trip_open()]
+    Closed --> Closed : success\n[on_success() resets failures]
+    
+    Open --> HalfOpen : cooldown expired\n[maybe_transition_from_open()]
+    Open --> Open : block incoming requests\n[allow_request() == False / fail fast]
+    
+    HalfOpen --> Closed : success >= successes_needed\n[on_success() closes circuit]
+    HalfOpen --> Open : any failure\n[on_failure() trips open immediately]
