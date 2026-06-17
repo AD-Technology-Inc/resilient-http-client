@@ -1,15 +1,11 @@
+import asyncio
 import redis.asyncio as redis
-
-from fastapi import FastAPI, Depends
 
 from src.client import ResilientHttpClient
 from src.failure_store import FailureStore
 
 
-app = FastAPI()
-
-
-async def http_client():
+async def main():
     redis_client = redis.Redis(
         host="localhost",
         port=6379,
@@ -26,24 +22,24 @@ async def http_client():
         client.fallback.register(
             lambda reason: {
                 "status": "degraded",
-                "message": "Payment provider unavailable",
+                "provider": "stripe",
+                "message": "Stripe temporarily unavailable",
                 "reason": reason,
             }
         )
 
-        yield client
+        response = await client.request(
+            method="POST",
+            url="https://api.stripe.com/v1/payment_intents",
+            headers={"Authorization": "Bearer sk_test_xxx"},
+            data={
+                "amount": 1000,
+                "currency": "usd",
+            },
+        )
+
+        print(response)
 
 
-@app.post("/charge")
-async def create_charge(http: ResilientHttpClient = Depends(http_client)):
-    response = await http.request(
-        method="POST",
-        url="https://api.stripe.com/v1/payment_intents",
-        headers={"Authorization": "Bearer sk_test_xxx"},
-        data={
-            "amount": 1000,
-            "currency": "usd",
-        },
-    )
-
-    return response
+if __name__ == "__main__":
+    asyncio.run(main())

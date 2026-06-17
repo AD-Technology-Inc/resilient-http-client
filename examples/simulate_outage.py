@@ -12,6 +12,8 @@ import redis.asyncio as redis
 
 from src.client import ResilientHttpClient
 from src.failure_store import FailureStore
+from src.config import ResilienceConfig
+from src.types import CircuitState
 
 
 class AlwaysFailHttpExecutor:
@@ -27,38 +29,47 @@ async def main():
     )
 
     store = FailureStore(redis_client, "stripe")
+    
+    # Ensure clean state for the simulation
+    await store.set_state(CircuitState.CLOSED.value)
+    await store.reset_failures()
 
-    client = ResilientHttpClient(
+    config = ResilienceConfig(
+        failure_threshold=3,
+        cooldown=10,
+    )
+
+    async with ResilientHttpClient(
         service="stripe",
         store=store,
-    )
+        config=config,
+    ) as client:
+        # Replace real HTTP layer with failing one
+        client.http = AlwaysFailHttpExecutor()
 
-    # Replace real HTTP layer with failing one
-    client.http = AlwaysFailHttpExecutor()
-
-    client.fallback.register(
-        lambda reason: {
-            "status": "degraded",
-            "reason": reason,
-        }
-    )
-
-    for i in range(1, 10):
-        print(f"\n--- Request {i} ---")
-
-        response = await client.request(
-            "POST",
-            "https://api.stripe.com/v1/payment_intents",
+        client.fallback.register(
+            lambda reason: {
+                "status": "degraded",
+                "reason": reason,
+            }
         )
 
-        state = store.get_state()
-        failures = store.get_failures()
+        for i in range(1, 10):
+            print(f"\n--- Request {i} ---")
 
-        print("Circuit State:", state)
-        print("Failures:", failures)
-        print("Response:", response)
+            response = await client.request(
+                "POST",
+                "https://api.stripe.com/v1/payment_intents",
+            )
 
-        await asyncio.sleep(0.5)
+            state = await store.get_state()
+            failures = await store.get_failures()
+
+            print("Circuit State:", state)
+            print("Failures:", failures)
+            print("Response:", response)
+
+            await asyncio.sleep(0.5)
 
 
 if __name__ == "__main__":
