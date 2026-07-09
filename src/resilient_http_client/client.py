@@ -1,10 +1,12 @@
 import logging
+import httpx
 from .http import HttpExecutor
 from .circuit_breaker import CircuitBreaker
 from .retry import RetryPolicy
 from .failure_store import FailureStore
 from .fallback import FallbackHandler
 from .config import ResilienceConfig
+
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,7 @@ class ResilientHttpClient:
     async def close(self):
         await self.http.close()
 
-    async def request(self, method: str, url: str, **kwargs):
+    async def request(self, method: str, url: str, **kwargs) -> httpx.Response:
         # 1. Check Circuit Breaker
         if not await self.circuit.allow_request():
             logger.warning(f"Request blocked by Circuit Breaker for {self.service}")
@@ -57,7 +59,7 @@ class ResilientHttpClient:
 
                 if response.is_success:
                     await self.circuit.on_success()
-                    return response.data
+                    return response
 
                 # Non-success response (e.g., 5xx)
                 logger.error(f"Request failed with status {response.status_code}")

@@ -38,7 +38,10 @@ class MockResponse:
     def __init__(self, is_success, status_code, data):
         self.is_success = is_success
         self.status_code = status_code
-        self.data = data
+        self._data = data
+
+    def json(self):
+        return self._data
 
 
 class FlakyHttpExecutor:
@@ -107,7 +110,7 @@ async def test_flaky_upstream_resilience():
     assert len(results) == 30
 
     # successes should exist
-    successes = [r for r in results if isinstance(r, dict) and r.get("ok") is True]
+    successes = [r for r in results if not isinstance(r, dict) and hasattr(r, "json") and r.json().get("ok") is True]
     assert len(successes) > 0
 
     # failures should exist due to upstream instability (returned as degraded responses)

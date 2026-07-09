@@ -45,4 +45,6 @@ async def create_charge(http: ResilientHttpClient = Depends(http_client)):
         },
     )
 
+    if hasattr(response, "json"):
+        return response.json()
     return response

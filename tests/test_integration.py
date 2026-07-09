@@ -47,7 +47,10 @@ class FakeResponse:
     def __init__(self, status_code=200):
         self.status_code = status_code
         self.is_success = 200 <= status_code < 300
-        self.data = {"ok": True} if self.is_success else {"error": "failed"}
+        self._data = {"ok": True} if self.is_success else {"error": "failed"}
+
+    def json(self):
+        return self._data
 
 
 @pytest.mark.asyncio
@@ -60,7 +63,7 @@ async def test_successful_request():
 
     result = await client.request("GET", "https://api.example.com")
 
-    assert result["ok"] is True
+    assert result.json()["ok"] is True
 
 
 @pytest.mark.asyncio

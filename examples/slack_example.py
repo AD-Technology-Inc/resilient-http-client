@@ -39,7 +39,10 @@ async def main():
             },
         )
 
-        print(response)
+        if hasattr(response, "json"):
+            print(response.json())
+        else:
+            print(response)
 
 
 if __name__ == "__main__":

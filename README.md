@@ -131,7 +131,13 @@ async def main():
             },
         )
 
-        print(response)
+        # The request returns a raw httpx.Response object on success
+        if hasattr(response, "json"):
+            print("Status:", response.status_code)
+            print("Response Data:", response.json())
+        else:
+            # Fallback values returned as a dict
+            print("Fallback Response:", response)
 
 if __name__ == "__main__":
     asyncio.run(main())
