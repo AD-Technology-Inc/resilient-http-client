@@ -42,11 +42,19 @@ class ResilientHttpClient:
     async def close(self):
         await self.http.close()
 
+    async def _run_fallback(self, reason: str) -> httpx.Response:
+        val = await self.fallback.run(reason)
+        if hasattr(val, "status_code"):
+            return val
+        if isinstance(val, dict):
+            return httpx.Response(503, json=val)
+        return httpx.Response(503, text=str(val))
+
     async def request(self, method: str, url: str, **kwargs) -> httpx.Response:
         # 1. Check Circuit Breaker
         if not await self.circuit.allow_request():
             logger.warning(f"Request blocked by Circuit Breaker for {self.service}")
-            return await self.fallback.run("circuit_open")
+            return await self._run_fallback("circuit_open")
 
         attempt = 0
         last_error = None
@@ -68,7 +76,7 @@ class ResilientHttpClient:
                 # We only retry on 5xx or specific errors
                 if response.status_code < 500:
                     await self.circuit.on_failure()
-                    return await self.fallback.run(last_error)
+                    return await self._run_fallback(last_error)
 
             except Exception as e:
                 logger.error(f"Request error: {str(e)}")
@@ -83,4 +91,4 @@ class ResilientHttpClient:
 
             # Final failure after retries
             logger.error(f"All retry attempts exhausted for {self.service}")
-            return await self.fallback.run(last_error)
+            return await self._run_fallback(last_error)

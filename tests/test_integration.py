@@ -78,8 +78,8 @@ async def test_fallback_on_failure():
 
     result = await client.request("GET", "https://api.example.com")
 
-    assert result["status"] == "degraded"
-    assert result["reason"] == "upstream_failure"
+    assert result.json()["status"] == "degraded"
+    assert result.json()["reason"] == "upstream_failure"
 
 
 @pytest.mark.asyncio
