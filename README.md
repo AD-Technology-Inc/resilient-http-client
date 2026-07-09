@@ -88,6 +88,20 @@ Allows a limited number of probe requests.
 * Any failed probe immediately reopens the circuit.
 * Prevents unstable services from causing repeated outages.
 
+## ⚙️ Installation
+
+Install the package via `pip` or your favorite package manager:
+
+```bash
+pip install ad-tech-inc-resilient-http
+```
+
+Or using `uv`:
+
+```bash
+uv add ad-tech-inc-resilient-http
+```
+
 ---
 
 ## ⚡ Quick Start
