@@ -1,6 +1,5 @@
 import pytest
-from src.failure_store import FailureStore
-from src.types import CircuitState
+from resilient_http_client import FailureStore, CircuitState
 
 
 class FakeRedis:

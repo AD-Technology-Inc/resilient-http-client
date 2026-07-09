@@ -10,10 +10,12 @@ Simulates an upstream outage and demonstrates:
 import asyncio
 import redis.asyncio as redis
 
-from src.client import ResilientHttpClient
-from src.failure_store import FailureStore
-from src.config import ResilienceConfig
-from src.types import CircuitState
+from resilient_http_client import (
+    ResilientHttpClient,
+    FailureStore,
+    ResilienceConfig,
+    CircuitState,
+)
 
 
 class AlwaysFailHttpExecutor:

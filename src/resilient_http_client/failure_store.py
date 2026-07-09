@@ -2,7 +2,7 @@ import logging
 
 from redis.asyncio import Redis
 
-from src.types import CircuitState
+from .types import CircuitState
 
 logger = logging.getLogger(__name__)
 

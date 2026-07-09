@@ -1,7 +1,5 @@
 import pytest
-from src.client import ResilientHttpClient
-from src.failure_store import FailureStore
-from src.config import ResilienceConfig
+from resilient_http_client import ResilientHttpClient, FailureStore, ResilienceConfig
 
 
 class FakeRedis:

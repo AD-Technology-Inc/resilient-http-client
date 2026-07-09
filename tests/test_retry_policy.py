@@ -1,6 +1,5 @@
 import pytest
-from src.retry import RetryPolicy
-from src.config import ResilienceConfig
+from resilient_http_client import RetryPolicy, ResilienceConfig
 
 
 @pytest.mark.asyncio

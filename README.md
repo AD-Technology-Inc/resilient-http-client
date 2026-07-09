@@ -221,20 +221,24 @@ The library includes a Redis-backed implementation and can be extended with cust
 
 ```text
 src/
-├── client.py
-├── circuit_breaker.py
-├── config.py
-├── failure_store.py
-├── fallback.py
-├── retry.py
-├── types.py
-└── executor.py
+└── resilient_http_client/
+    ├── __init__.py
+    ├── client.py
+    ├── circuit_breaker.py
+    ├── config.py
+    ├── failure_store.py
+    ├── fallback.py
+    ├── http.py
+    ├── retry.py
+    └── types.py
 
 tests/
 ├── test_circuit_breaker.py
-├── test_retry.py
 ├── test_failure_store.py
-└── ...
+├── test_fallback.py
+├── test_flaky_resilience.py
+├── test_integration.py
+└── test_retry_policy.py
 ```
 
 ### Module Overview
@@ -246,6 +250,7 @@ tests/
 * 🎭 `fallback.py` — Fallback registration and execution.
 * ⚙️ `config.py` — Configuration definitions.
 * 📘 `types.py` — Shared enums and type definitions.
+* 🌐 `http.py` — HTTP request execution layer.
 
 ---
 
@@ -254,13 +259,7 @@ tests/
 Run the full test suite:
 
 ```bash
-PYTHONPATH=. uv run pytest tests
-```
-
-Or:
-
-```bash
-pytest
+uv run pytest
 ```
 
 ### Coverage Includes

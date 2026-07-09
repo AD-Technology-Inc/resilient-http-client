@@ -1,7 +1,5 @@
 import pytest
-from src.circuit_breaker import CircuitBreaker
-from src.config import ResilienceConfig
-from src.types import CircuitState
+from resilient_http_client import CircuitBreaker, ResilienceConfig, CircuitState
 
 
 # -------------------------

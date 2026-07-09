@@ -1,8 +1,7 @@
 import asyncio
 import redis.asyncio as redis
 
-from src.client import ResilientHttpClient
-from src.failure_store import FailureStore
+from resilient_http_client import ResilientHttpClient, FailureStore
 
 
 async def main():

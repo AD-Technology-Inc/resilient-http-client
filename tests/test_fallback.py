@@ -1,5 +1,5 @@
 import pytest
-from src.fallback import FallbackHandler
+from resilient_http_client import FallbackHandler
 
 
 @pytest.mark.asyncio
