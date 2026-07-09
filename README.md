@@ -312,9 +312,3 @@ Available examples:
 * Containerized applications
 * Kubernetes deployments
 * Any environment where downstream dependencies may become unavailable
-
----
-
-## License
-
-MIT
