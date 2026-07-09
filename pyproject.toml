@@ -1,5 +1,5 @@
 [project]
-name = "resilient-http-client"
+name = "ad-tech-inc-resilient-http"
 version = "0.1.0"
 description = "A production-grade, asynchronous HTTP client for Python engineered to tolerate downstream service outages, network instability, and latency spikes."
 readme = "README.md"
