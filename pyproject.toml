@@ -1,6 +1,6 @@
 [project]
 name = "ad-tech-inc-resilient-http"
-version = "0.1.0"
+version = "0.1.1"
 description = "A production-grade, asynchronous HTTP client for Python engineered to tolerate downstream service outages, network instability, and latency spikes."
 readme = "README.md"
 requires-python = ">=3.12"
