@@ -1,5 +1,23 @@
 # 🛡️ Resilient HTTP Client
 
+<p align="center">
+  <a href="https://github.com/AD-Technology-Inc/resilient-http-client/actions/workflows/ci.yml">
+    <img src="https://github.com/AD-Technology-Inc/resilient-http-client/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+  </a>
+  <a href="https://pypi.org/project/ad-tech-inc-resilient-http/">
+    <img src="https://img.shields.io/pypi/v/ad-tech-inc-resilient-http.svg" alt="PyPI Version">
+  </a>
+  <a href="https://pypi.org/project/ad-tech-inc-resilient-http/">
+    <img src="https://img.shields.io/pypi/pyversions/ad-tech-inc-resilient-http.svg" alt="Supported Python Versions">
+  </a>
+  <a href="https://github.com/AD-Technology-Inc/resilient-http-client/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/AD-Technology-Inc/resilient-http-client.svg" alt="License">
+  </a>
+  <a href="https://github.com/astral-sh/uv">
+    <img src="https://img.shields.io/badge/package%20manager-uv-purple.svg" alt="Uv">
+  </a>
+</p>
+
 A production-grade, asynchronous HTTP client for Python engineered to tolerate downstream service outages, network instability, and latency spikes. It implements proven resilience patterns including **Circuit Breakers**, **Retry Policies**, **Fallback Mechanisms**, and a **Distributed Failure Store** to enable reliable service-to-service communication.
 
 Built on top of `httpx`, the library is designed for modern distributed systems where resilience is a first-class requirement.
@@ -20,27 +38,10 @@ Built on top of `httpx`, the library is designed for modern distributed systems 
 
 ## 📐 System Architecture
 
-The following diagram illustrates how the components of `resilient-http-client` coordinate request delivery, state checking, retries, and fallback execution.
+The coordination of request delivery, state checking, retries, and fallback execution is modeled in our system architecture.
 
-```mermaid
-flowchart TD
-    classDef main fill:#1E88E5,stroke:#1565C0,stroke-width:2px,color:#fff;
-    classDef support fill:#43A047,stroke:#2E7D32,stroke-width:2px,color:#fff;
-    classDef store fill:#E53935,stroke:#C62828,stroke-width:2px,color:#fff;
-
-    Client["ResilientHttpClient"]:::main
-    CB["CircuitBreaker"]:::main
-    Store["FailureStore"]:::store
-    Retry["RetryPolicy"]:::support
-    Fallback["FallbackHandler"]:::support
-    Executor["HttpExecutor (httpx)"]:::support
-
-    Client -->|1. Check state / record metrics| CB
-    Client -->|2. Manage retry attempts| Retry
-    Client -->|3. Fallback on final error| Fallback
-    Client -->|4. Dispatch requests| Executor
-    CB -->|Query & persist state / counters| Store
-```
+> 📊 **[View System Architecture Diagram](docs/diagrams/architecture.mmd)**
+> 🕒 **[View Request Sequence Flow Diagram](docs/diagrams/sequence_flow.mmd)**
 
 ---
 
@@ -48,19 +49,7 @@ flowchart TD
 
 The client implements a fully compliant circuit breaker state machine with lazy cooldown transitions and probe request gating.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Closed : Initial State
-
-    Closed --> Open : failures >= threshold
-    Closed --> Closed : success
-
-    Open --> HalfOpen : cooldown expired
-    Open --> Open : block requests
-
-    HalfOpen --> Closed : success >= successes_needed
-    HalfOpen --> Open : any failure
-```
+> 🔄 **[View Circuit Breaker State Machine Diagram](docs/diagrams/state_machine.mmd)**
 
 ### State Behavior
 
