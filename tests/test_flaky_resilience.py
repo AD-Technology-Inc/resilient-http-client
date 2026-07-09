@@ -114,7 +114,7 @@ async def test_flaky_upstream_resilience():
     assert len(successes) > 0
 
     # failures should exist due to upstream instability (returned as degraded responses)
-    failures = [r for r in results if hasattr(r, "json") and r.json().get("status") == "degraded"]
+    failures = [r for r in results if hasattr(r, "status_code") and r.status_code == 503]
     assert len(failures) > 0
 
     # executor must have been exercised heavily

@@ -1,12 +1,13 @@
 import logging
+
 import httpx
-from .http import HttpExecutor
+
 from .circuit_breaker import CircuitBreaker
-from .retry import RetryPolicy
+from .config import ResilienceConfig
 from .failure_store import FailureStore
 from .fallback import FallbackHandler
-from .config import ResilienceConfig
-
+from .http import HttpExecutor
+from .retry import RetryPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -42,38 +43,14 @@ class ResilientHttpClient:
     async def close(self):
         await self.http.close()
 
-    async def _run_fallback(
-        self, reason: str, response: httpx.Response = None
-    ) -> httpx.Response:
-        if self.fallback._fn is not None:
-            val = await self.fallback.run(reason)
-            if hasattr(val, "status_code"):
-                return val
-            if isinstance(val, dict):
-                return httpx.Response(503, json=val)
-            return httpx.Response(503, text=str(val))
-
-        if response is not None:
-            return response
-
-        return httpx.Response(
-            503,
-            json={
-                "status": "degraded",
-                "error": "service_unavailable",
-                "reason": reason,
-            },
-        )
-
     async def request(self, method: str, url: str, **kwargs) -> httpx.Response:
         # 1. Check Circuit Breaker
         if not await self.circuit.allow_request():
             logger.warning(f"Request blocked by Circuit Breaker for {self.service}")
-            return await self._run_fallback("circuit_open")
+            return await self.fallback.run("circuit_open")
 
         attempt = 0
-        last_error = None
-        response = None
+        last_error = ""
 
         while True:
             attempt += 1
@@ -87,12 +64,12 @@ class ResilientHttpClient:
 
                 # Non-success response (e.g., 5xx)
                 logger.error(f"Request failed with status {response.status_code}")
-                last_error = f"HTTP {response.status_code}"
+                last_error = response
 
                 # We only retry on 5xx or specific errors
                 if response.status_code < 500:
                     await self.circuit.on_failure()
-                    return await self._run_fallback(last_error, response=response)
+                    return await self.fallback.run(last_error)
 
             except Exception as e:
                 logger.error(f"Request error: {str(e)}")
@@ -107,4 +84,4 @@ class ResilientHttpClient:
 
             # Final failure after retries
             logger.error(f"All retry attempts exhausted for {self.service}")
-            return await self._run_fallback(last_error, response=response)
+            return await self.fallback.run(last_error)

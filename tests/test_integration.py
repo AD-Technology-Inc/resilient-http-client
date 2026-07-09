@@ -1,4 +1,5 @@
 import pytest
+from httpx import Response
 from resilient_http_client import ResilientHttpClient, FailureStore, ResilienceConfig
 
 
@@ -43,14 +44,15 @@ class FakeHttpExecutor:
         pass
 
 
-class FakeResponse:
+class FakeResponse(Response):
     def __init__(self, status_code=200):
-        self.status_code = status_code
-        self.is_success = 200 <= status_code < 300
-        self._data = {"ok": True} if self.is_success else {"error": "failed"}
+        self._data = {"ok": True} if 200 <= status_code < 300 else {"error": "failed"}
+        super().__init__(status_code, json=self._data)
 
     def json(self):
         return self._data
+
+
 
 
 @pytest.mark.asyncio
@@ -78,8 +80,9 @@ async def test_fallback_on_failure():
 
     result = await client.request("GET", "https://api.example.com")
 
-    assert result.json()["status"] == "degraded"
-    assert result.json()["reason"] == "upstream_failure"
+    assert result.status_code == 503
+    assert result.json()["statusCode"] == 503
+    assert result.json()["message"] == "upstream_failure"
 
 
 @pytest.mark.asyncio
@@ -115,3 +118,66 @@ async def test_upstream_500_returns_actual_response_when_no_fallback():
     # Should return the actual HTTP 500 response from the server directly
     assert result.status_code == 500
     assert result.json()["error"] == "failed"
+
+
+@pytest.mark.asyncio
+async def test_custom_fallback_receives_response_object():
+    redis = FakeRedis()
+    store = FailureStore(redis, "stripe")
+    config = ResilienceConfig(max_retries=0)
+    client = ResilientHttpClient(service="stripe", store=store, config=config)
+
+    executor = FakeHttpExecutor(status_code=500)
+    client.http = executor
+
+    received_response = None
+
+    def my_fallback(error):
+        nonlocal received_response
+        received_response = error
+        resp = FakeResponse(status_code=503)
+        resp._data = {"custom_fallback": True}
+        return resp
+
+    client.fallback.register(my_fallback)
+
+    result = await client.request("GET", "https://api.example.com")
+
+    assert result.status_code == 503
+    assert result.json()["custom_fallback"] is True
+    assert received_response is not None
+    assert getattr(received_response, "status_code", None) == 500
+
+
+@pytest.mark.asyncio
+async def test_custom_fallback_can_return_any_type():
+    redis = FakeRedis()
+    store = FailureStore(redis, "stripe")
+    config = ResilienceConfig(max_retries=0)
+    client = ResilientHttpClient(service="stripe", store=store, config=config)
+
+    executor = FakeHttpExecutor(status_code=500)
+    client.http = executor
+
+    # Registers a fallback that returns a plain dictionary instead of a response
+    client.fallback.register(lambda error: {"not_a_response": True})
+
+    result = await client.request("GET", "https://api.example.com")
+    assert result == {"not_a_response": True}
+
+
+@pytest.mark.asyncio
+async def test_circuit_open_returns_cb_open_code():
+    redis = FakeRedis()
+    store = FailureStore(redis, "stripe")
+    config = ResilienceConfig(max_retries=0)
+    client = ResilientHttpClient(service="stripe", store=store, config=config)
+
+    # Force the circuit open
+    await client.circuit.trip_open()
+
+    result = await client.request("GET", "https://api.example.com")
+
+    assert result.status_code == 503
+    assert result.json()["statusCode"] == 503
+    assert result.json()["message"] == "circuit_open"

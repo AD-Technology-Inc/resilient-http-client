@@ -22,6 +22,9 @@ class AlwaysFailHttpExecutor:
     async def send(self, method, url, **kwargs):
         raise Exception("upstream_timeout")
 
+    async def close(self):
+        pass
+
 
 async def main():
     redis_client = redis.Redis(

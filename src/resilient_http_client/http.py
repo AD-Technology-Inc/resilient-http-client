@@ -1,5 +1,6 @@
-import httpx
 import logging
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +18,7 @@ class HttpExecutor:
     async def send(self, method: str, url: str, **kwargs) -> httpx.Response:
         client = await self.get_client()
         try:
-            response = await client.request(method, url, **kwargs)
-            return response
+            return await client.request(method, url, **kwargs)
         except httpx.RequestError as exc:
             logger.error(f"An error occurred while requesting {exc.request.url!r}.")
             raise
@@ -26,4 +26,3 @@ class HttpExecutor:
     async def close(self):
         if self._client and not self._client.is_closed:
             await self._client.aclose()
-
