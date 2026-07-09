@@ -36,13 +36,17 @@ class CircuitBreaker:
             # Check for lazy transition
             if await self.store.is_open_expired():
                 await self.transition_to_half_open()
+                await self.store.increment_half_open_calls()
                 return True
 
             return False
 
         if state == CircuitState.HALF_OPEN.value:
             calls = await self.store.get_half_open_calls()
-            return calls < self.config.half_open_max_calls
+            if calls < self.config.half_open_max_calls:
+                await self.store.increment_half_open_calls()
+                return True
+            return False
 
         return True
 

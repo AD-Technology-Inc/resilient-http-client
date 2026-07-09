@@ -42,13 +42,28 @@ class ResilientHttpClient:
     async def close(self):
         await self.http.close()
 
-    async def _run_fallback(self, reason: str) -> httpx.Response:
-        val = await self.fallback.run(reason)
-        if hasattr(val, "status_code"):
-            return val
-        if isinstance(val, dict):
-            return httpx.Response(503, json=val)
-        return httpx.Response(503, text=str(val))
+    async def _run_fallback(
+        self, reason: str, response: httpx.Response = None
+    ) -> httpx.Response:
+        if self.fallback._fn is not None:
+            val = await self.fallback.run(reason)
+            if hasattr(val, "status_code"):
+                return val
+            if isinstance(val, dict):
+                return httpx.Response(503, json=val)
+            return httpx.Response(503, text=str(val))
+
+        if response is not None:
+            return response
+
+        return httpx.Response(
+            503,
+            json={
+                "status": "degraded",
+                "error": "service_unavailable",
+                "reason": reason,
+            },
+        )
 
     async def request(self, method: str, url: str, **kwargs) -> httpx.Response:
         # 1. Check Circuit Breaker
@@ -58,6 +73,7 @@ class ResilientHttpClient:
 
         attempt = 0
         last_error = None
+        response = None
 
         while True:
             attempt += 1
@@ -76,7 +92,7 @@ class ResilientHttpClient:
                 # We only retry on 5xx or specific errors
                 if response.status_code < 500:
                     await self.circuit.on_failure()
-                    return await self._run_fallback(last_error)
+                    return await self._run_fallback(last_error, response=response)
 
             except Exception as e:
                 logger.error(f"Request error: {str(e)}")
@@ -91,4 +107,4 @@ class ResilientHttpClient:
 
             # Final failure after retries
             logger.error(f"All retry attempts exhausted for {self.service}")
-            return await self._run_fallback(last_error)
+            return await self._run_fallback(last_error, response=response)

@@ -98,3 +98,20 @@ async def test_circuit_trips_after_retries():
     # The circuit should now be open
     assert await client.circuit.is_open() is True
     assert executor.calls == 2 # Initial + 1 retry
+
+
+@pytest.mark.asyncio
+async def test_upstream_500_returns_actual_response_when_no_fallback():
+    redis = FakeRedis()
+    store = FailureStore(redis, "stripe")
+    config = ResilienceConfig(max_retries=0)
+    client = ResilientHttpClient(service="stripe", store=store, config=config)
+
+    executor = FakeHttpExecutor(status_code=500)
+    client.http = executor
+
+    result = await client.request("GET", "https://api.example.com")
+
+    # Should return the actual HTTP 500 response from the server directly
+    assert result.status_code == 500
+    assert result.json()["error"] == "failed"

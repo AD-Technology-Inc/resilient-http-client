@@ -167,11 +167,7 @@ async def test_half_open_allows_limited_requests(store, breaker):
     breaker.config.half_open_max_calls = 2
 
     assert await breaker.allow_request() is True
-    await store.increment_half_open_calls()
-    
     assert await breaker.allow_request() is True
-    await store.increment_half_open_calls()
-
     assert await breaker.allow_request() is False
 
 
