@@ -18,7 +18,7 @@
   </a>
 </p>
 
-A production-grade, asynchronous HTTP client for Python engineered to tolerate downstream service outages, network instability, and latency spikes. It implements proven resilience patterns including **Circuit Breakers**, **Retry Policies**, **Fallback Mechanisms**, and a **Distributed Failure Store** to enable reliable service-to-service communication.
+Asynchronous HTTP client for Python engineered to tolerate downstream service outages, network instability, and latency spikes. It implements proven resilience patterns including **Circuit Breakers**, **Retry Policies**, **Fallback Mechanisms**, and a **Distributed Failure Store** to enable reliable service-to-service communication.
 
 Built on top of `httpx`, the library is designed for modern distributed systems where resilience is a first-class requirement.
 
