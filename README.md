@@ -26,13 +26,16 @@ Built on top of `httpx`, the library is designed for modern distributed systems 
 
 ## 🚀 Features
 
-* **Circuit Breaker Pattern** — Prevents cascading failures using a strict state machine (`CLOSED`, `OPEN`, `HALF-OPEN`).
+* **Circuit Breaker Pattern** — Prevents cascading failures using a strict state machine (`CLOSED`, `OPEN`, `HALF-OPEN`) with advanced **Count-based** and **Time-based** sliding windows.
+* **Rate-Based Tripping** — Trip the circuit breaker based on failure percentage thresholds (similar to Resilience4j).
+* **Configurable Failure/Retry Codes** — Full control over which HTTP status codes trigger retries (e.g. 429) vs. circuit failures (e.g. 500, ignoring validation errors like 422).
 * **Distributed Failure Store** — Share circuit state and failure metrics across workers and service instances.
 * **Automatic Retries** — Configurable retry budgets with exponential backoff for transient failures.
 * **Graceful Fallbacks** — Return degraded responses or execute alternative logic instead of surfacing raw exceptions.
 * **Fully Asynchronous** — Built on `httpx` for high-concurrency, non-blocking I/O.
 * **Pluggable Components** — Storage and resilience behavior can be customized to fit different deployment environments.
 * **Production Ready** — Suitable for microservices, containerized workloads, and distributed deployments.
+
 
 ---
 
@@ -153,12 +156,19 @@ Customize resilience behavior through `ResilienceConfig`.
 from resilient_http_client import ResilienceConfig
 
 config = ResilienceConfig(
-    failure_threshold=5,
     cooldown=30,
     max_retries=3,
     timeout=5.0,
-    half_open_max_calls=1,
-    half_open_successes_needed=1,
+    half_open_max_calls=3,
+    half_open_successes_needed=2,
+    # Sliding window configuration
+    sliding_window_type="COUNT_BASED",        # "COUNT_BASED" or "TIME_BASED"
+    sliding_window_size=10,                   # Evaluate last 10 requests or last 10 seconds
+    minimum_number_of_calls=5,                # Do not trip until at least 5 calls are made
+    failure_rate_threshold=50.0,              # Trip open if >= 50.0% of requests in window fail
+    # Status codes customization
+    retry_status_codes={408, 429, 500, 503},  # Status codes that trigger retries
+    circuit_failure_status_codes={500, 503},  # Status codes that count as circuit breaker failures
 )
 
 client = ResilientHttpClient(
@@ -170,14 +180,21 @@ client = ResilientHttpClient(
 
 ### Configuration Reference
 
-| Parameter                    | Type    | Default | Description                                             |
-| ---------------------------- | ------- | ------- | ------------------------------------------------------- |
-| `failure_threshold`          | `int`   | `5`     | Consecutive failures required to open the circuit       |
-| `cooldown`                   | `int`   | `30`    | Seconds before an open circuit transitions to half-open |
-| `max_retries`                | `int`   | `3`     | Number of retry attempts before failure                 |
-| `timeout`                    | `float` | `5.0`   | Request timeout in seconds                              |
-| `half_open_max_calls`        | `int`   | `1`     | Maximum probe requests allowed while half-open          |
-| `half_open_successes_needed` | `int`   | `1`     | Successful probes required to close the circuit         |
+| Parameter                      | Type       | Default | Description                                                                                |
+| ------------------------------ | ---------- | ------- | ------------------------------------------------------------------------------------------ |
+| `cooldown`                     | `int`      | `30`    | Seconds before an open circuit transitions to half-open                                    |
+| `max_retries`                  | `int`      | `3`     | Number of retry attempts before failure                                                    |
+| `timeout`                      | `float`    | `5.0`   | Request timeout in seconds                                                                 |
+| `half_open_max_calls`          | `int`      | `1`     | Maximum probe requests allowed while half-open                                            |
+| `half_open_successes_needed`   | `int`      | `1`     | Successful probes required to close the circuit                                           |
+| `sliding_window_type`          | `str`      | `"COUNT_BASED"` | Type of sliding window: `"COUNT_BASED"` or `"TIME_BASED"`                          |
+| `sliding_window_size`          | `int`      | `10`    | Size of sliding window: number of calls (count-based) or number of seconds (time-based)    |
+| `minimum_number_of_calls`      | `int`      | `5`     | Minimum calls recorded in the window before failure rate percentage is evaluated           |
+| `failure_rate_threshold`       | `float`    | `50.0`  | Percentage of failures in the window required to trip the circuit open                    |
+| `retry_status_codes`           | `Set[int]` | `{408, 429, 500, 502, 503, 504}` | Set of HTTP status codes that trigger a retry attempt                           |
+| `circuit_failure_status_codes` | `Set[int]` | `{500, 502, 503, 504}`           | Set of HTTP status codes that count as circuit breaker failures                   |
+| `failure_threshold`            | `int`      | `5`     | (Deprecated/Fallback) Absolute consecutive failures required to open the circuit          |
+
 
 ---
 
