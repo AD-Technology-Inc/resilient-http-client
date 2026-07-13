@@ -19,4 +19,9 @@ class ResilienceConfig:
     circuit_failure_status_codes: Set[int] = field(
         default_factory=lambda: set(DEFAULT_CIRCUIT_FAILURE_STATUS_CODES)
     )
+    sliding_window_type: str = "COUNT_BASED"  # "COUNT_BASED" or "TIME_BASED"
+    sliding_window_size: int = 10
+    minimum_number_of_calls: int = 5
+    failure_rate_threshold: float = 50.0
+
 

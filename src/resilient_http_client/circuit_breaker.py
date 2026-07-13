@@ -58,6 +58,7 @@ class CircuitBreaker:
         await self.store.set_state(CircuitState.OPEN.value, ttl=self.config.cooldown)
         await self.store.reset_failures()
         await self.store.reset_half_open()
+        await self.store.reset_window()
 
     async def transition_to_half_open(self):
         logger.info(
@@ -67,6 +68,16 @@ class CircuitBreaker:
         await self.store.reset_half_open()
 
     async def maybe_open(self):
+        # 1. Evaluate sliding window
+        rate, calls = await self.store.get_failure_rate_and_calls(
+            self.config.sliding_window_type, self.config.sliding_window_size
+        )
+        if calls >= self.config.minimum_number_of_calls:
+            if rate >= self.config.failure_rate_threshold:
+                await self.trip_open()
+                return
+
+        # 2. Fallback to absolute failures threshold for backward compatibility
         failures = await self.store.get_failures()
         if failures >= self.config.failure_threshold:
             await self.trip_open()
@@ -84,9 +95,16 @@ class CircuitBreaker:
                 )
                 await self.store.reset_failures()
                 await self.store.reset_half_open()
+                await self.store.reset_window()
                 await self.store.set_state(CircuitState.CLOSED.value)
         else:
             await self.store.reset_failures()
+            await self.store.record_call(
+                success=True,
+                window_type=self.config.sliding_window_type,
+                window_size=self.config.sliding_window_size,
+            )
+            await self.maybe_open()
 
     async def on_failure(self):
         state = await self.get_current_state()
@@ -95,4 +113,10 @@ class CircuitBreaker:
             await self.trip_open()
         else:
             await self.store.increment_failures()
+            await self.store.record_call(
+                success=False,
+                window_type=self.config.sliding_window_type,
+                window_size=self.config.sliding_window_size,
+            )
             await self.maybe_open()
+

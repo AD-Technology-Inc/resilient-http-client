@@ -26,6 +26,67 @@ class FakeRedis:
     async def delete(self, key):
         self.db.pop(key, None)
 
+    async def rpush(self, key, value):
+        if key not in self.db:
+            self.db[key] = []
+        self.db[key].append(value)
+        return len(self.db[key])
+
+    async def ltrim(self, key, start, stop):
+        if key in self.db and isinstance(self.db[key], list):
+            lst = self.db[key]
+            n = len(lst)
+            s = start if start >= 0 else max(0, n + start)
+            e = stop + 1 if stop >= 0 else max(0, n + stop + 1)
+            self.db[key] = lst[s:e]
+        return True
+
+    async def lrange(self, key, start, stop):
+        if key not in self.db:
+            return []
+        lst = self.db[key]
+        n = len(lst)
+        s = start if start >= 0 else max(0, n + start)
+        e = stop + 1 if stop >= 0 else (max(0, n + stop + 1) if stop != -1 else n)
+        return lst[s:e]
+
+    async def zadd(self, key, mapping):
+        if key not in self.db or not isinstance(self.db[key], dict):
+            self.db[key] = {}
+        for member, score in mapping.items():
+            self.db[key][member] = float(score)
+        return len(mapping)
+
+    async def zremrangebyscore(self, key, min_val, max_val):
+        if key not in self.db or not isinstance(self.db[key], dict):
+            return 0
+        f_min = -float("inf") if min_val == "-inf" else float(min_val)
+        f_max = float("inf") if max_val == "+inf" else float(max_val)
+
+        to_remove = [
+            member
+            for member, score in self.db[key].items()
+            if f_min <= score <= f_max
+        ]
+        for member in to_remove:
+            self.db[key].pop(member)
+        return len(to_remove)
+
+    async def zrangebyscore(self, key, min_val, max_val):
+        if key not in self.db or not isinstance(self.db[key], dict):
+            return []
+        f_min = -float("inf") if min_val == "-inf" else float(min_val)
+        f_max = float("inf") if max_val == "+inf" else float(max_val)
+
+        items = [
+            (member, score)
+            for member, score in self.db[key].items()
+            if f_min <= score <= f_max
+        ]
+        items.sort(key=lambda x: x[1])
+        return [member for member, score in items]
+
+
 
 class FakeHttpExecutor:
     def __init__(self, should_fail=False, status_code=200):
@@ -253,4 +314,74 @@ async def test_client_custom_circuit_failure_and_retry_status_codes():
     assert executor_500.calls == 1  # No retry
     assert result.status_code == 500
     assert await store.get_failures() == 0  # 0 failures recorded
+
+
+@pytest.mark.asyncio
+async def test_client_count_based_sliding_window_tripping():
+    redis = FakeRedis()
+    store = FailureStore(redis, "stripe")
+    config = ResilienceConfig(
+        max_retries=0,
+        sliding_window_type="COUNT_BASED",
+        sliding_window_size=4,
+        minimum_number_of_calls=4,
+        failure_rate_threshold=50.0,
+    )
+    client = ResilientHttpClient(service="stripe", store=store, config=config)
+
+    # 1. 1st failure (500) -> total calls = 1 < 4 (min calls) -> not tripped
+    client.http = FakeHttpExecutor(status_code=500)
+    res = await client.request("GET", "https://api.example.com")
+    assert res.status_code == 500
+    assert await client.circuit.is_open() is False
+
+    # 2. 2nd and 3rd calls (200 successes) -> total calls = 3 < 4 -> not tripped
+    client.http = FakeHttpExecutor(status_code=200)
+    await client.request("GET", "https://api.example.com")
+    await client.request("GET", "https://api.example.com")
+    assert await client.circuit.is_open() is False
+
+    # 3. 4th call (500 failure) -> total calls = 4, failures = 2/4 = 50% -> trips!
+    client.http = FakeHttpExecutor(status_code=500)
+    res = await client.request("GET", "https://api.example.com")
+    assert res.status_code == 500
+    assert await client.circuit.is_open() is True
+
+    # 4. 5th call should be blocked and return circuit_open fallback
+    client.http = FakeHttpExecutor(status_code=200)
+    res = await client.request("GET", "https://api.example.com")
+    assert res.status_code == 503
+    assert res.json()["message"] == "circuit_open"
+
+
+@pytest.mark.asyncio
+async def test_client_time_based_sliding_window_tripping():
+    redis = FakeRedis()
+    store = FailureStore(redis, "stripe")
+    config = ResilienceConfig(
+        max_retries=0,
+        sliding_window_type="TIME_BASED",
+        sliding_window_size=5,
+        minimum_number_of_calls=3,
+        failure_rate_threshold=50.0,
+    )
+    client = ResilientHttpClient(service="stripe", store=store, config=config)
+
+    # 1. Success call (200)
+    client.http = FakeHttpExecutor(status_code=200)
+    await client.request("GET", "https://api.example.com")
+    assert await client.circuit.is_open() is False
+
+    # 2. Two failures (500) -> total calls = 3, failures = 2/3 = 66% -> trips!
+    client.http = FakeHttpExecutor(status_code=500)
+    await client.request("GET", "https://api.example.com")
+    await client.request("GET", "https://api.example.com")
+    assert await client.circuit.is_open() is True
+
+    # 3. Call blocked
+    client.http = FakeHttpExecutor(status_code=200)
+    res = await client.request("GET", "https://api.example.com")
+    assert res.status_code == 503
+    assert res.json()["message"] == "circuit_open"
+
 

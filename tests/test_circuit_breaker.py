@@ -15,6 +15,8 @@ class FakeStore:
         self.half_open_calls = 0
         self.half_open_successes = 0
         self.expired = False
+        from typing import Any
+        self.window: list[Any] = []
 
     async def get_state(self):
         return self.state
@@ -50,6 +52,39 @@ class FakeStore:
 
     async def is_open_expired(self):
         return self.expired
+
+    async def record_call(self, success, window_type, window_size):
+        val = "S" if success else "F"
+        if window_type == "TIME_BASED":
+            import time
+            now = time.time()
+            self.window.append((now, val))
+            self.window = [(t, v) for t, v in self.window if t >= now - window_size]
+        else:  # COUNT_BASED
+            self.window.append(val)
+            if len(self.window) > window_size:
+                self.window = self.window[-window_size:]
+
+    async def get_failure_rate_and_calls(self, window_type, window_size):
+        if window_type == "TIME_BASED":
+            import time
+            now = time.time()
+            self.window = [(t, v) for t, v in self.window if t >= now - window_size]
+            total_calls = len(self.window)
+            if total_calls == 0:
+                return 0.0, 0
+            failures = sum(1 for t, v in self.window if v == "F")
+            return (failures / total_calls) * 100.0, total_calls
+        else:  # COUNT_BASED
+            total_calls = len(self.window)
+            if total_calls == 0:
+                return 0.0, 0
+            failures = sum(1 for v in self.window if v == "F")
+            return (failures / total_calls) * 100.0, total_calls
+
+    async def reset_window(self):
+        self.window = []
+
 
 
 @pytest.fixture
@@ -190,3 +225,51 @@ async def test_half_open_failure_reopens_circuit(store, breaker):
 
     assert await breaker.is_open()
     assert store.state == CircuitState.OPEN.value
+
+
+@pytest.mark.asyncio
+async def test_sliding_window_count_based_rate_based_tripping(store):
+    config = ResilienceConfig(
+        sliding_window_type="COUNT_BASED",
+        sliding_window_size=4,
+        minimum_number_of_calls=4,
+        failure_rate_threshold=50.0,
+    )
+    breaker = CircuitBreaker(store, config=config)
+
+    # 1. First failure (total calls = 1 < minimum_number_of_calls)
+    await breaker.on_failure()
+    assert await breaker.is_open() is False
+
+    # 2. Add two successes (total calls = 3)
+    await breaker.on_success()
+    await breaker.on_success()
+    assert await breaker.is_open() is False
+
+    # 3. Add second failure (total calls = 4, failure rate = 2/4 = 50%)
+    await breaker.on_failure()
+    # Now it meets minimum number of calls, and failure rate is 50%, so it trips!
+    assert await breaker.is_open() is True
+    assert store.state == CircuitState.OPEN.value
+
+
+@pytest.mark.asyncio
+async def test_sliding_window_time_based_rate_based_tripping(store):
+    config = ResilienceConfig(
+        sliding_window_type="TIME_BASED",
+        sliding_window_size=5,
+        minimum_number_of_calls=3,
+        failure_rate_threshold=50.0,
+    )
+    breaker = CircuitBreaker(store, config=config)
+
+    # Record 1 success (total calls = 1)
+    await breaker.on_success()
+    assert await breaker.is_open() is False
+
+    # Record 2 failures (total calls = 3, failure rate = 2/3 = 66.6%)
+    await breaker.on_failure()
+    await breaker.on_failure()
+    assert await breaker.is_open() is True
+    assert store.state == CircuitState.OPEN.value
+
