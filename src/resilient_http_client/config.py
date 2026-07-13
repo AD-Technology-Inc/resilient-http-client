@@ -23,3 +23,6 @@ class ResilienceConfig:
     sliding_window_size: int = 10
     minimum_number_of_calls: int = 5
     failure_rate_threshold: float = 50.0
+    retry_backoff_base: float = 0.1
+    retry_max_delay: float = 10.0
+

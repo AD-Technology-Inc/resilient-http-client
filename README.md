@@ -169,6 +169,9 @@ config = ResilienceConfig(
     # Status codes customization
     retry_status_codes={408, 429, 500, 503},  # Status codes that trigger retries
     circuit_failure_status_codes={500, 503},  # Status codes that count as circuit breaker failures
+    # Retry delay customization
+    retry_backoff_base=0.1,                   # Starting backoff delay in seconds
+    retry_max_delay=10.0,                     # Maximum backoff delay cap in seconds
 )
 
 client = ResilientHttpClient(
@@ -193,6 +196,8 @@ client = ResilientHttpClient(
 | `failure_rate_threshold`       | `float`    | `50.0`  | Percentage of failures in the window required to trip the circuit open                    |
 | `retry_status_codes`           | `Set[int]` | `{408, 429, 500, 502, 503, 504}` | Set of HTTP status codes that trigger a retry attempt                           |
 | `circuit_failure_status_codes` | `Set[int]` | `{500, 502, 503, 504}`           | Set of HTTP status codes that count as circuit breaker failures                   |
+| `retry_backoff_base`           | `float`    | `0.1`   | Starting backoff base delay in seconds for exponential backoff                             |
+| `retry_max_delay`              | `float`    | `10.0`  | Maximum delay cap in seconds for retry attempts                                            |
 | `failure_threshold`            | `int`      | `5`     | (Deprecated/Fallback) Absolute consecutive failures required to open the circuit          |
 
 
