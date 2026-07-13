@@ -1,11 +1,11 @@
-from .client import ResilientHttpClient
-from .failure_store import FailureStore
-from .config import ResilienceConfig
-from .types import CircuitState
 from .circuit_breaker import CircuitBreaker
-from .retry import RetryPolicy
-from .fallback import FallbackHandler
+from .client import ResilientHttpClient
+from .config import ResilienceConfig
 from .exceptions import CircuitOpenError, RetryExhaustedError
+from .failure_store import FailureStore
+from .fallback import FallbackHandler
+from .retry import RetryPolicy
+from .types import CircuitState
 
 __all__ = [
     "ResilientHttpClient",

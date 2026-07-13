@@ -23,5 +23,3 @@ class ResilienceConfig:
     sliding_window_size: int = 10
     minimum_number_of_calls: int = 5
     failure_rate_threshold: float = 50.0
-
-

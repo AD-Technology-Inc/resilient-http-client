@@ -1,6 +1,7 @@
 import asyncio
-import random
 import logging
+import random
+
 from .config import ResilienceConfig
 
 logger = logging.getLogger(__name__)

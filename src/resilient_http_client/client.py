@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 
 class ResilientHttpClient:
     """
-    Wrapper around an HTTP client that implements resilience patterns such as Circuit Breaker, Retry, and Fallback. It uses the provided FailureStore to track failures and manage the state of the circuit breaker.
+    Wrapper around an HTTP client that implements resilience patterns such as 
+    Circuit Breaker, Retry, and Fallback. It uses the provided FailureStore to track failures 
+    and manage the state of the circuit breaker.
 
     issue: it should be possible to customize HttpExecutor failure handling (is_success)
     """
@@ -46,7 +48,9 @@ class ResilientHttpClient:
     async def request(self, method: str, url: str, **kwargs) -> httpx.Response:
         # 1. Check Circuit Breaker
         if not await self.circuit.allow_request():
-            logger.warning(f"Request blocked by Circuit Breaker for {self.service}")
+            logger.warning(
+                f"Request blocked by Circuit Breaker for {self.service}"
+            )
             return await self.fallback.run("circuit_open")
 
         attempt = 0
@@ -59,15 +63,22 @@ class ResilientHttpClient:
                 response = await self.http.send(method, url, **kwargs)
 
                 # Determine if this response represents a circuit failure or retryable error
-                is_circuit_failure = response.status_code in self.config.circuit_failure_status_codes
-                is_retryable = response.status_code in self.config.retry_status_codes
+                is_circuit_failure = (
+                    response.status_code
+                    in self.config.circuit_failure_status_codes
+                )
+                is_retryable = (
+                    response.status_code in self.config.retry_status_codes
+                )
 
                 if not is_circuit_failure and not is_retryable:
                     await self.circuit.on_success()
                     return response
 
                 # Non-success/failure response
-                logger.error(f"Request failed with status {response.status_code}")
+                logger.error(
+                    f"Request failed with status {response.status_code}"
+                )
                 last_error = response
 
                 if is_circuit_failure:
@@ -93,4 +104,3 @@ class ResilientHttpClient:
                 # Final failure after retries
                 logger.error(f"All retry attempts exhausted for {self.service}")
                 return await self.fallback.run(last_error)
-

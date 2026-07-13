@@ -1,6 +1,7 @@
 import logging
-from .types import CircuitState
+
 from .config import ResilienceConfig
+from .types import CircuitState
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,9 @@ class CircuitBreaker:
             f"Circuit breaker tripping OPEN for service {self.store.service}"
         )
         # issue: what if this block is interrupted?
-        await self.store.set_state(CircuitState.OPEN.value, ttl=self.config.cooldown)
+        await self.store.set_state(
+            CircuitState.OPEN.value, ttl=self.config.cooldown
+        )
         await self.store.reset_failures()
         await self.store.reset_half_open()
         await self.store.reset_window()
@@ -91,7 +94,8 @@ class CircuitBreaker:
 
             if successes >= self.config.half_open_successes_needed:
                 logger.info(
-                    f"Circuit breaker closing (HALF-OPEN -> CLOSED) for service {self.store.service}"
+                    f"Circuit breaker closing \
+                    (HALF-OPEN -> CLOSED) for service {self.store.service}"
                 )
                 await self.store.reset_failures()
                 await self.store.reset_half_open()
@@ -119,4 +123,3 @@ class CircuitBreaker:
                 window_size=self.config.sliding_window_size,
             )
             await self.maybe_open()
-

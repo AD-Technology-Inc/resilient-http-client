@@ -1,10 +1,11 @@
 import pytest
-from resilient_http_client import CircuitBreaker, ResilienceConfig, CircuitState
 
+from resilient_http_client import CircuitBreaker, CircuitState, ResilienceConfig
 
 # -------------------------
 # FIXTURES
 # -------------------------
+
 
 class FakeStore:
     def __init__(self, service="test-service"):
@@ -16,6 +17,7 @@ class FakeStore:
         self.half_open_successes = 0
         self.expired = False
         from typing import Any
+
         self.window: list[Any] = []
 
     async def get_state(self):
@@ -57,9 +59,12 @@ class FakeStore:
         val = "S" if success else "F"
         if window_type == "TIME_BASED":
             import time
+
             now = time.time()
             self.window.append((now, val))
-            self.window = [(t, v) for t, v in self.window if t >= now - window_size]
+            self.window = [
+                (t, v) for t, v in self.window if t >= now - window_size
+            ]
         else:  # COUNT_BASED
             self.window.append(val)
             if len(self.window) > window_size:
@@ -68,8 +73,11 @@ class FakeStore:
     async def get_failure_rate_and_calls(self, window_type, window_size):
         if window_type == "TIME_BASED":
             import time
+
             now = time.time()
-            self.window = [(t, v) for t, v in self.window if t >= now - window_size]
+            self.window = [
+                (t, v) for t, v in self.window if t >= now - window_size
+            ]
             total_calls = len(self.window)
             if total_calls == 0:
                 return 0.0, 0
@@ -84,7 +92,6 @@ class FakeStore:
 
     async def reset_window(self):
         self.window = []
-
 
 
 @pytest.fixture
@@ -107,6 +114,7 @@ def breaker_with_threshold(store):
 # TESTS - FAILURE TRACKING
 # -------------------------
 
+
 @pytest.mark.asyncio
 async def test_failure_tracking(breaker, store):
     await breaker.on_failure()
@@ -126,6 +134,7 @@ async def test_success_resets_failures_and_state(breaker_with_threshold, store):
 # -------------------------
 # THRESHOLD BEHAVIOR
 # -------------------------
+
 
 @pytest.mark.asyncio
 async def test_does_not_open_before_threshold(breaker_with_threshold, store):
@@ -148,6 +157,7 @@ async def test_opens_at_threshold(breaker_with_threshold, store):
 # -------------------------
 # OPEN STATE
 # -------------------------
+
 
 @pytest.mark.asyncio
 async def test_remains_open_after_trigger(breaker_with_threshold):
@@ -186,6 +196,7 @@ async def test_open_sets_ttl(store, breaker):
 # -------------------------
 # HALF-OPEN STATE
 # -------------------------
+
 
 @pytest.mark.asyncio
 async def test_transition_to_half_open(store, breaker):
@@ -272,4 +283,3 @@ async def test_sliding_window_time_based_rate_based_tripping(store):
     await breaker.on_failure()
     assert await breaker.is_open() is True
     assert store.state == CircuitState.OPEN.value
-

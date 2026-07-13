@@ -1,6 +1,11 @@
 import pytest
 from httpx import Response
-from resilient_http_client import ResilientHttpClient, FailureStore, ResilienceConfig
+
+from resilient_http_client import (
+    FailureStore,
+    ResilienceConfig,
+    ResilientHttpClient,
+)
 
 
 class FakeRedis:
@@ -47,7 +52,11 @@ class FakeRedis:
         lst = self.db[key]
         n = len(lst)
         s = start if start >= 0 else max(0, n + start)
-        e = stop + 1 if stop >= 0 else (max(0, n + stop + 1) if stop != -1 else n)
+        e = (
+            stop + 1
+            if stop >= 0
+            else (max(0, n + stop + 1) if stop != -1 else n)
+        )
         return lst[s:e]
 
     async def zadd(self, key, mapping):
@@ -87,7 +96,6 @@ class FakeRedis:
         return [member for member, score in items]
 
 
-
 class FakeHttpExecutor:
     def __init__(self, should_fail=False, status_code=200):
         self.should_fail = should_fail
@@ -107,13 +115,13 @@ class FakeHttpExecutor:
 
 class FakeResponse(Response):
     def __init__(self, status_code=200):
-        self._data = {"ok": True} if 200 <= status_code < 300 else {"error": "failed"}
+        self._data = (
+            {"ok": True} if 200 <= status_code < 300 else {"error": "failed"}
+        )
         super().__init__(status_code, json=self._data)
 
     def json(self):
         return self._data
-
-
 
 
 @pytest.mark.asyncio
@@ -161,7 +169,7 @@ async def test_circuit_trips_after_retries():
 
     # The circuit should now be open
     assert await client.circuit.is_open() is True
-    assert executor.calls == 2 # Initial + 1 retry
+    assert executor.calls == 2  # Initial + 1 retry
 
 
 @pytest.mark.asyncio
@@ -383,5 +391,3 @@ async def test_client_time_based_sliding_window_tripping():
     res = await client.request("GET", "https://api.example.com")
     assert res.status_code == 503
     assert res.json()["message"] == "circuit_open"
-
-

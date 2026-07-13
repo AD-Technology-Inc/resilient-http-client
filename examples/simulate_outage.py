@@ -8,13 +8,14 @@ Simulates an upstream outage and demonstrates:
 """
 
 import asyncio
+
 import redis.asyncio as redis
 
 from resilient_http_client import (
-    ResilientHttpClient,
+    CircuitState,
     FailureStore,
     ResilienceConfig,
-    CircuitState,
+    ResilientHttpClient,
 )
 
 
@@ -34,7 +35,7 @@ async def main():
     )
 
     store = FailureStore(redis_client, "stripe")
-    
+
     # Ensure clean state for the simulation
     await store.set_state(CircuitState.CLOSED.value)
     await store.reset_failures()

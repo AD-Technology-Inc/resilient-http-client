@@ -31,7 +31,9 @@ class FailureStore:
 
         except Exception as e:
             logger.error(f"Redis error in get_state: {e}")
-            return CircuitState.CLOSED.value  # Fallback to closed if Redis is down
+            return (
+                CircuitState.CLOSED.value
+            )  # Fallback to closed if Redis is down
 
     async def set_state(self, state: str, ttl: int | None = None):
         try:
@@ -126,7 +128,9 @@ class FailureStore:
             logger.error(f"Redis error in is_open_expired: {e}")
             return False
 
-    async def record_call(self, success: bool, window_type: str, window_size: int):
+    async def record_call(
+        self, success: bool, window_type: str, window_size: int
+    ):
         try:
             key = self._key("window")
             val_char = "S" if success else "F"
@@ -135,7 +139,9 @@ class FailureStore:
                 now = time.time()
                 val = f"{now}:{uuid.uuid4().hex}:{val_char}"
                 await self.redis.zadd(key, {val: now})
-                await self.redis.zremrangebyscore(key, "-inf", now - window_size)
+                await self.redis.zremrangebyscore(
+                    key, "-inf", now - window_size
+                )
                 await self.redis.expire(key, window_size + 60)
             else:  # COUNT_BASED
                 await self.redis.rpush(key, val_char)
@@ -152,8 +158,12 @@ class FailureStore:
 
             if window_type == "TIME_BASED":
                 now = time.time()
-                await self.redis.zremrangebyscore(key, "-inf", now - window_size)
-                elements = await self.redis.zrangebyscore(key, now - window_size, now)
+                await self.redis.zremrangebyscore(
+                    key, "-inf", now - window_size
+                )
+                elements = await self.redis.zrangebyscore(
+                    key, now - window_size, now
+                )
 
                 total_calls = len(elements)
                 if total_calls == 0:
@@ -161,7 +171,11 @@ class FailureStore:
 
                 failures = 0
                 for elem in elements:
-                    elem_str: str = elem.decode("utf-8") if isinstance(elem, bytes) else str(elem)
+                    elem_str: str = (
+                        elem.decode("utf-8")
+                        if isinstance(elem, bytes)
+                        else str(elem)
+                    )
                     if elem_str.split(":")[-1] == "F":
                         failures += 1
 
@@ -176,7 +190,11 @@ class FailureStore:
 
                 failures = 0
                 for elem in elements:
-                    elem_str: str = elem.decode("utf-8") if isinstance(elem, bytes) else str(elem)
+                    elem_str: str = (
+                        elem.decode("utf-8")
+                        if isinstance(elem, bytes)
+                        else str(elem)
+                    )
                     if elem_str == "F":
                         failures += 1
 
@@ -186,10 +204,8 @@ class FailureStore:
             logger.error(f"Redis error in get_failure_rate_and_calls: {e}")
             return 0.0, 0
 
-
     async def reset_window(self):
         try:
             await self.redis.delete(self._key("window"))
         except Exception as e:
             logger.error(f"Redis error in reset_window: {e}")
-

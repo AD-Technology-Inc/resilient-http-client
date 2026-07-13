@@ -20,7 +20,9 @@ class HttpExecutor:
         try:
             return await client.request(method, url, **kwargs)
         except httpx.RequestError as exc:
-            logger.error(f"An error occurred while requesting {exc.request.url!r}.")
+            logger.error(
+                f"An error occurred while requesting {exc.request.url!r}."
+            )
             raise
 
     async def close(self):

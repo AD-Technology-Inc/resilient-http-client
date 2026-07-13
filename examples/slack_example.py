@@ -1,7 +1,8 @@
 import asyncio
+
 import redis.asyncio as redis
 
-from resilient_http_client import ResilientHttpClient, FailureStore
+from resilient_http_client import FailureStore, ResilientHttpClient
 
 
 async def main():
@@ -18,7 +19,7 @@ async def main():
         service=service,
         store=store,
     ) as client:
-        # custom fallback response 
+        # custom fallback response
         client.fallback.register(
             lambda reason: {
                 "status": "queued",

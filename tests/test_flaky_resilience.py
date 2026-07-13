@@ -1,7 +1,12 @@
-import pytest
 import asyncio
 
-from resilient_http_client import ResilientHttpClient, FailureStore, ResilienceConfig
+import pytest
+
+from resilient_http_client import (
+    FailureStore,
+    ResilienceConfig,
+    ResilientHttpClient,
+)
 
 
 # -----------------------------
@@ -110,11 +115,15 @@ async def test_flaky_upstream_resilience():
     assert len(results) == 30
 
     # successes should exist
-    successes = [r for r in results if hasattr(r, "json") and r.json().get("ok") is True]
+    successes = [
+        r for r in results if hasattr(r, "json") and r.json().get("ok") is True
+    ]
     assert len(successes) > 0
 
     # failures should exist due to upstream instability (returned as degraded responses)
-    failures = [r for r in results if hasattr(r, "status_code") and r.status_code == 503]
+    failures = [
+        r for r in results if hasattr(r, "status_code") and r.status_code == 503
+    ]
     assert len(failures) > 0
 
     # executor must have been exercised heavily

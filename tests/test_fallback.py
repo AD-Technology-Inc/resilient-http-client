@@ -1,5 +1,6 @@
 import pytest
 from httpx import Response
+
 from resilient_http_client import FallbackHandler
 
 
@@ -19,10 +20,13 @@ async def test_custom_fallback_sync():
     fallback = FallbackHandler()
 
     fallback.register(
-        lambda reason: Response(503, json={
-            "custom": True,
-            "reason": reason,
-        })
+        lambda reason: Response(
+            503,
+            json={
+                "custom": True,
+                "reason": reason,
+            },
+        )
     )
 
     result = await fallback.run("circuit_open")

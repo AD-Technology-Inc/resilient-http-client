@@ -1,9 +1,7 @@
 import redis.asyncio as redis
+from fastapi import Depends, FastAPI
 
-from fastapi import FastAPI, Depends
-
-from resilient_http_client import ResilientHttpClient, FailureStore
-
+from resilient_http_client import FailureStore, ResilientHttpClient
 
 app = FastAPI()
 
