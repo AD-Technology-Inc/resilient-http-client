@@ -1,4 +1,8 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Set
+
+DEFAULT_RETRY_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+DEFAULT_CIRCUIT_FAILURE_STATUS_CODES = {500, 502, 503, 504}
 
 
 @dataclass
@@ -9,3 +13,10 @@ class ResilienceConfig:
     half_open_successes_needed: int = 1
     max_retries: int = 2
     timeout: float = 5.0
+    retry_status_codes: Set[int] = field(
+        default_factory=lambda: set(DEFAULT_RETRY_STATUS_CODES)
+    )
+    circuit_failure_status_codes: Set[int] = field(
+        default_factory=lambda: set(DEFAULT_CIRCUIT_FAILURE_STATUS_CODES)
+    )
+

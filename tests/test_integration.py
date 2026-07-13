@@ -181,3 +181,76 @@ async def test_circuit_open_returns_cb_open_code():
     assert result.status_code == 503
     assert result.json()["statusCode"] == 503
     assert result.json()["message"] == "circuit_open"
+
+
+@pytest.mark.asyncio
+async def test_client_validation_error_422_ignores_circuit_failure_and_returns_actual_response():
+    redis = FakeRedis()
+    store = FailureStore(redis, "stripe")
+    config = ResilienceConfig(max_retries=0)
+    client = ResilientHttpClient(service="stripe", store=store, config=config)
+
+    executor = FakeHttpExecutor(status_code=422)
+    client.http = executor
+
+    result = await client.request("GET", "https://api.example.com")
+
+    # Should return the actual HTTP 422 response directly
+    assert result.status_code == 422
+    assert result.json()["error"] == "failed"
+
+    # Circuit breaker should not record failure or trip
+    assert await store.get_failures() == 0
+    assert await client.circuit.is_open() is False
+
+
+@pytest.mark.asyncio
+async def test_client_retry_on_429_but_no_circuit_failure():
+    redis = FakeRedis()
+    store = FailureStore(redis, "stripe")
+    config = ResilienceConfig(max_retries=1)
+    client = ResilientHttpClient(service="stripe", store=store, config=config)
+
+    executor = FakeHttpExecutor(status_code=429)
+    client.http = executor
+
+    result = await client.request("GET", "https://api.example.com")
+
+    # Should retry (1 initial + 1 retry = 2 calls)
+    assert executor.calls == 2
+    # Should return the actual HTTP 429 response directly after retries
+    assert result.status_code == 429
+
+    # Circuit breaker should not record failure
+    assert await store.get_failures() == 0
+
+
+@pytest.mark.asyncio
+async def test_client_custom_circuit_failure_and_retry_status_codes():
+    redis = FakeRedis()
+    store = FailureStore(redis, "stripe")
+    config = ResilienceConfig(
+        max_retries=1,
+        retry_status_codes={418},
+        circuit_failure_status_codes={418},
+    )
+    client = ResilientHttpClient(service="stripe", store=store, config=config)
+
+    # 1. 418 Teapot should retry and record circuit failure
+    executor_418 = FakeHttpExecutor(status_code=418)
+    client.http = executor_418
+    result = await client.request("GET", "https://api.example.com")
+    assert executor_418.calls == 2
+    assert result.status_code == 418
+    assert await store.get_failures() == 2  # 2 failures recorded
+
+    await store.reset_failures()
+
+    # 2. 500 error should NOT retry and NOT record failure (since it's not in the custom sets)
+    executor_500 = FakeHttpExecutor(status_code=500)
+    client.http = executor_500
+    result = await client.request("GET", "https://api.example.com")
+    assert executor_500.calls == 1  # No retry
+    assert result.status_code == 500
+    assert await store.get_failures() == 0  # 0 failures recorded
+

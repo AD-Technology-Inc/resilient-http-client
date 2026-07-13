@@ -58,30 +58,39 @@ class ResilientHttpClient:
                 # 2. Execute Request
                 response = await self.http.send(method, url, **kwargs)
 
-                if response.is_success:
+                # Determine if this response represents a circuit failure or retryable error
+                is_circuit_failure = response.status_code in self.config.circuit_failure_status_codes
+                is_retryable = response.status_code in self.config.retry_status_codes
+
+                if not is_circuit_failure and not is_retryable:
                     await self.circuit.on_success()
                     return response
 
-                # Non-success response (e.g., 5xx)
+                # Non-success/failure response
                 logger.error(f"Request failed with status {response.status_code}")
                 last_error = response
 
-                # We only retry on 5xx or specific errors
-                if response.status_code < 500:
+                if is_circuit_failure:
                     await self.circuit.on_failure()
-                    return await self.fallback.run(last_error)
+
+                if is_retryable and self.retry.can_retry(attempt):
+                    await self.retry.wait(attempt)
+                    continue
+
+                # Final failure: either not retryable or retries exhausted
+                return await self.fallback.run(last_error)
 
             except Exception as e:
                 logger.error(f"Request error: {str(e)}")
                 last_error = str(e)
 
-            # 3. Handle Failure & Retry
-            await self.circuit.on_failure()
+                await self.circuit.on_failure()
 
-            if self.retry.can_retry(attempt):
-                await self.retry.wait(attempt)
-                continue
+                if self.retry.can_retry(attempt):
+                    await self.retry.wait(attempt)
+                    continue
 
-            # Final failure after retries
-            logger.error(f"All retry attempts exhausted for {self.service}")
-            return await self.fallback.run(last_error)
+                # Final failure after retries
+                logger.error(f"All retry attempts exhausted for {self.service}")
+                return await self.fallback.run(last_error)
+
