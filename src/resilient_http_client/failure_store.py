@@ -115,6 +115,32 @@ class FailureStore:
         except Exception as e:
             logger.error(f"Redis error in reset_half_open: {e}")
 
+    # Probe token: atomic SETNX lock for half-open stampede protection
+    async def acquire_probe_token(self, ttl: int = 30) -> bool:
+        """
+        Attempt to claim the single probe execution token using an atomic
+        SET NX EX operation. Returns True if this worker won the lock,
+        False if another worker already holds it.
+
+        The TTL is a safety net: if the probe worker crashes before calling
+        release_probe_token, the lock automatically expires after `ttl` seconds.
+        """
+        try:
+            key = self._key("half_open_probe_token")
+            acquired = await self.redis.set(key, "1", ex=ttl, nx=True)
+            return bool(acquired)
+        except Exception as e:
+            logger.error(f"Redis error in acquire_probe_token: {e}")
+            # Fail open: if Redis is unavailable, allow the probe through
+            return True
+
+    async def release_probe_token(self):
+        """Release the probe execution token after the probe completes."""
+        try:
+            await self.redis.delete(self._key("half_open_probe_token"))
+        except Exception as e:
+            logger.error(f"Redis error in release_probe_token: {e}")
+
     async def is_open_expired(self) -> bool:
         try:
             state = await self.get_state()

@@ -37,17 +37,20 @@ class CircuitBreaker:
             # Check for lazy transition
             if await self.store.is_open_expired():
                 await self.transition_to_half_open()
-                await self.store.increment_half_open_calls()
-                return True
-
-            return False
+                # Fall through to HALF_OPEN handling below
+                state = CircuitState.HALF_OPEN.value
+            else:
+                return False
 
         if state == CircuitState.HALF_OPEN.value:
-            calls = await self.store.get_half_open_calls()
-            if calls < self.config.half_open_max_calls:
-                await self.store.increment_half_open_calls()
-                return True
-            return False
+            # Atomic SETNX probe lock: only the first worker across all
+            # containers claims the token; all others go directly to fallback.
+            # This prevents a stampede from knocking a barely-recovering
+            # downstream service back down.
+            if not await self.store.acquire_probe_token(ttl=self.config.cooldown):
+                return False
+            await self.store.increment_half_open_calls()
+            return True
 
         return True
 
@@ -62,6 +65,8 @@ class CircuitBreaker:
         await self.store.reset_failures()
         await self.store.reset_half_open()
         await self.store.reset_window()
+        # Release any stale probe token so the next cooldown cycle is not blocked
+        await self.store.release_probe_token()
 
     async def transition_to_half_open(self):
         logger.info(

@@ -16,6 +16,7 @@ class FakeStore:
         self.half_open_calls = 0
         self.half_open_successes = 0
         self.expired = False
+        self._probe_token_held = False
         from typing import Any
 
         self.window: list[Any] = []
@@ -51,6 +52,15 @@ class FakeStore:
     async def reset_half_open(self):
         self.half_open_calls = 0
         self.half_open_successes = 0
+
+    async def acquire_probe_token(self, ttl: int = 30) -> bool:
+        if self._probe_token_held:
+            return False
+        self._probe_token_held = True
+        return True
+
+    async def release_probe_token(self):
+        self._probe_token_held = False
 
     async def is_open_expired(self):
         return self.expired
@@ -212,8 +222,11 @@ async def test_half_open_allows_limited_requests(store, breaker):
     store.state = CircuitState.HALF_OPEN.value
     breaker.config.half_open_max_calls = 2
 
+    # First call: probe token acquired -> allowed
     assert await breaker.allow_request() is True
-    assert await breaker.allow_request() is True
+    # Second call: probe token already held -> blocked by stampede guard
+    assert await breaker.allow_request() is False
+    # Third call: same
     assert await breaker.allow_request() is False
 
 
@@ -283,3 +296,48 @@ async def test_sliding_window_time_based_rate_based_tripping(store):
     await breaker.on_failure()
     assert await breaker.is_open() is True
     assert store.state == CircuitState.OPEN.value
+
+
+# -------------------------
+# HALF-OPEN STAMPEDE PROTECTION
+# -------------------------
+
+
+@pytest.mark.asyncio
+async def test_half_open_stampede_only_one_probe_allowed(store, breaker):
+    """When many concurrent workers evaluate HALF_OPEN simultaneously,
+    only the first one should receive allow_request() == True.
+    All others must be blocked by the atomic probe token."""
+    import asyncio
+
+    store.state = CircuitState.HALF_OPEN.value
+
+    # Simulate 10 concurrent workers all calling allow_request at once
+    results = await asyncio.gather(
+        *[breaker.allow_request() for _ in range(10)]
+    )
+
+    allowed = [r for r in results if r is True]
+    blocked = [r for r in results if r is False]
+
+    assert len(allowed) == 1, "Exactly one probe should be allowed through"
+    assert len(blocked) == 9, "All other workers must be routed to fallback"
+
+
+@pytest.mark.asyncio
+async def test_probe_token_released_when_tripping_open(store, breaker):
+    """After a probe fails and the circuit trips back to OPEN,
+    the probe token must be cleared so the next cooldown cycle
+    can issue a fresh probe."""
+    store.state = CircuitState.HALF_OPEN.value
+
+    # Worker wins the probe token
+    assert await breaker.allow_request() is True
+    assert store._probe_token_held is True
+
+    # Probe fails -> circuit trips back OPEN
+    await breaker.on_failure()
+    assert store.state == CircuitState.OPEN.value
+
+    # Token must be released
+    assert store._probe_token_held is False
