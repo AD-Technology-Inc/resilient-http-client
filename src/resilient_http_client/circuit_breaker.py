@@ -1,6 +1,7 @@
 import logging
 
 from .config import ResilienceConfig
+from .protocols import FailureStoreProtocol
 from .types import CircuitState
 
 logger = logging.getLogger(__name__)
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 class CircuitBreaker:
     def __init__(
         self,
-        store,
+        store: FailureStoreProtocol,
         config: ResilienceConfig = ResilienceConfig(),
     ):
         self.store = store

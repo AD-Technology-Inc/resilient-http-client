@@ -9,6 +9,7 @@ from .types import CircuitState
 logger = logging.getLogger(__name__)
 
 
+
 class FailureStore:
     def __init__(self, redis: Redis, service: str):
         self.redis = redis

@@ -8,23 +8,22 @@ Verifies that:
 """
 
 from typing import Callable
-import pytest
-import httpx
 
-from resilient_http_client import (
-    HttpExecutor,
-    HttpExecutorProtocol,
-    FailureStore,
-    FailureStoreProtocol,
-    RetryPolicy,
-    RetryPolicyProtocol,
-    FallbackHandler,
-    FallbackHandlerProtocol,
-    ResilientHttpClient,
-    ResilienceConfig,
-)
+import httpx
+import pytest
 from test_circuit_breaker import FakeStore
 
+from resilient_http_client import (
+    FailureStoreProtocol,
+    FallbackHandler,
+    FallbackHandlerProtocol,
+    HttpExecutor,
+    HttpExecutorProtocol,
+    ResilienceConfig,
+    ResilientHttpClient,
+    RetryPolicy,
+    RetryPolicyProtocol,
+)
 
 # ---------------------------------------------------------------------------
 # Test Mocks for Conformance Checks

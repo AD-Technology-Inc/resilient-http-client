@@ -7,6 +7,7 @@ from .config import ResilienceConfig
 logger = logging.getLogger(__name__)
 
 
+
 class RetryPolicy:
     def __init__(self, config: ResilienceConfig = ResilienceConfig()):
         self.config = config

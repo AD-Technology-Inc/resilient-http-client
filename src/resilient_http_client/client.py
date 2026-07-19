@@ -4,9 +4,14 @@ import httpx
 
 from .circuit_breaker import CircuitBreaker
 from .config import ResilienceConfig
-from .failure_store import FailureStore
 from .fallback import FallbackHandler
 from .http import HttpExecutor
+from .protocols import (
+    FailureStoreProtocol,
+    FallbackHandlerProtocol,
+    HttpExecutorProtocol,
+    RetryPolicyProtocol,
+)
 from .retry import RetryPolicy
 
 logger = logging.getLogger(__name__)
@@ -24,7 +29,7 @@ class ResilientHttpClient:
     def __init__(
         self,
         service: str,
-        store: FailureStore,
+        store: FailureStoreProtocol,
         config: ResilienceConfig = ResilienceConfig(),
     ):
         self.service = service
@@ -32,9 +37,9 @@ class ResilientHttpClient:
         self.config = config
 
         self.circuit = CircuitBreaker(store, config)
-        self.http = HttpExecutor(timeout=config.timeout)
-        self.retry = RetryPolicy(config)
-        self.fallback = FallbackHandler()
+        self.http: HttpExecutorProtocol = HttpExecutor(timeout=config.timeout)
+        self.retry: RetryPolicyProtocol = RetryPolicy(config)
+        self.fallback: FallbackHandlerProtocol = FallbackHandler()
 
     async def __aenter__(self):
         return self
