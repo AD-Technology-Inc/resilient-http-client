@@ -1,0 +1,65 @@
+from typing import Protocol, runtime_checkable
+
+
+@runtime_checkable
+class FailureStoreProtocol(Protocol):
+    """Structural protocol for failure-state backends.
+
+    Implement this interface to replace the built-in Redis-backed FailureStore
+    with any alternative backend (in-memory, DynamoDB, Postgres, etc.).
+    CircuitBreaker consumes the store exclusively through this surface.
+    """
+
+    service: str
+
+    async def get_state(self) -> str:
+        ...
+
+    async def set_state(self, state: str, ttl: int | None = None) -> None:
+        ...
+
+    async def increment_failures(self, window: int = 60) -> None:
+        ...
+
+    async def get_failures(self) -> int:
+        ...
+
+    async def reset_failures(self) -> None:
+        ...
+
+    async def get_half_open_calls(self) -> int:
+        ...
+
+    async def increment_half_open_calls(self) -> None:
+        ...
+
+    async def get_half_open_successes(self) -> int:
+        ...
+
+    async def increment_half_open_success(self) -> None:
+        ...
+
+    async def reset_half_open(self) -> None:
+        ...
+
+    async def acquire_probe_token(self, ttl: int = 30) -> bool:
+        ...
+
+    async def release_probe_token(self) -> None:
+        ...
+
+    async def is_open_expired(self) -> bool:
+        ...
+
+    async def record_call(
+        self, success: bool, window_type: str, window_size: int
+    ) -> None:
+        ...
+
+    async def get_failure_rate_and_calls(
+        self, window_type: str, window_size: int
+    ) -> tuple[float, int]:
+        ...
+
+    async def reset_window(self) -> None:
+        ...
