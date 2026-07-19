@@ -9,3 +9,32 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+  chaos_mock:
+    build:
+      context: ./chaos_harness
+      dockerfile: Dockerfile.mock
+
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+
+  chaos_test_runner:
+    build:
+      context: .
+      dockerfile: chaos_harness/Dockerfile.test_runner
+    environment:
+      REDIS_HOST: redis
+      MOCK_HOST: chaos_mock
+    depends_on:
+      redis:
+        condition: service_healthy
+      chaos_mock:
+        condition: service_healthy
+
