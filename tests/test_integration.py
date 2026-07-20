@@ -419,5 +419,31 @@ async def test_per_request_max_retries_and_fallback_override():
     assert executor.calls == 3  # Initial + 2 retries
 
 
+@pytest.mark.asyncio
+async def test_per_request_timeout_override():
+    redis = FakeRedis()
+    store = FailureStore(redis, "stripe")
+    config = ResilienceConfig(timeout=10.0)
+    client = ResilientHttpClient(service="stripe", store=store, config=config)
+
+    captured_kwargs = {}
+
+    class TimeoutCaptureExecutor:
+        async def send(self, method, url, **kwargs):
+            nonlocal captured_kwargs
+            captured_kwargs = kwargs
+            return FakeResponse(status_code=200)
+
+        async def close(self):
+            pass
+
+    client.http = TimeoutCaptureExecutor()
+
+    # Per-request timeout override
+    await client.request("GET", "https://api.example.com", timeout=2.5)
+    assert captured_kwargs.get("timeout") == 2.5
+
+
+
 
 
