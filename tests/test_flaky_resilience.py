@@ -12,9 +12,40 @@ from resilient_http_client import (
 # -----------------------------
 # Fake Redis (isolated unit test store)
 # -----------------------------
+class FakePipeline:
+    def __init__(self, redis):
+        self.redis = redis
+        self.commands = []
+
+    def set(self, key, value, ex=None, nx=False):
+        self.commands.append(("set", (key, value), {"ex": ex, "nx": nx}))
+        return self
+
+    def delete(self, key):
+        self.commands.append(("delete", (key,), {}))
+        return self
+
+    async def execute(self):
+        results = []
+        for cmd, args, kwargs in self.commands:
+            method = getattr(self.redis, cmd)
+            res = await method(*args, **kwargs)
+            results.append(res)
+        return results
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+
 class FakeRedis:
     def __init__(self):
         self.db = {}
+
+    def pipeline(self, transaction=True):
+        return FakePipeline(self)
 
     async def get(self, key):
         return self.db.get(key)

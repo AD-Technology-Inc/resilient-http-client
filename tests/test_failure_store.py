@@ -3,9 +3,40 @@ import pytest
 from resilient_http_client import CircuitState, FailureStore
 
 
+class FakePipeline:
+    def __init__(self, redis):
+        self.redis = redis
+        self.commands = []
+
+    def set(self, key, value, ex=None, nx=False):
+        self.commands.append(("set", (key, value), {"ex": ex, "nx": nx}))
+        return self
+
+    def delete(self, key):
+        self.commands.append(("delete", (key,), {}))
+        return self
+
+    async def execute(self):
+        results = []
+        for cmd, args, kwargs in self.commands:
+            method = getattr(self.redis, cmd)
+            res = await method(*args, **kwargs)
+            results.append(res)
+        return results
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+
 class FakeRedis:
     def __init__(self):
         self.db = {}
+
+    def pipeline(self, transaction=True):
+        return FakePipeline(self)
 
     async def get(self, key):
         return self.db.get(key)
@@ -93,3 +124,17 @@ async def test_half_open_metrics():
     await store.reset_half_open()
     assert await store.get_half_open_calls() == 0
     assert await store.get_half_open_successes() == 0
+
+
+@pytest.mark.asyncio
+async def test_atomic_state_transition():
+    redis = FakeRedis()
+    store = FailureStore(redis, "stripe")
+
+    await store.set_state(CircuitState.OPEN.value, ttl=60)
+    assert await store.get_state() == CircuitState.OPEN.value
+    assert await redis.get("resilience:stripe:open_cooldown") == "1"
+
+    await store.set_state(CircuitState.CLOSED.value)
+    assert await store.get_state() == CircuitState.CLOSED.value
+    assert await redis.get("resilience:stripe:open_cooldown") is None

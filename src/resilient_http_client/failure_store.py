@@ -38,13 +38,13 @@ class FailureStore:
             key_state = self._key("state")
             key_cd = self._key("open_cooldown")
 
-            if state == CircuitState.OPEN.value and ttl:
-                # issue: model is not atomic - what if this block is interrupted?
-                await self.redis.set(key_state, CircuitState.OPEN.value)
-                await self.redis.set(key_cd, "1", ex=ttl, nx=True)
-            else:
-                await self.redis.set(key_state, state)
-                await self.redis.delete(key_cd)
+            async with self.redis.pipeline(transaction=True) as pipe:
+                pipe.set(key_state, state)
+                if state == CircuitState.OPEN.value and ttl:
+                    pipe.set(key_cd, "1", ex=ttl, nx=True)
+                else:
+                    pipe.delete(key_cd)
+                await pipe.execute()
         except Exception as e:
             logger.error(f"Redis error in set_state: {e}")
 
