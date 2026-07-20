@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 import httpx
 import redis.asyncio as redis
@@ -52,9 +53,12 @@ class CustomLinearRetryPolicy:
 
 
 async def get_custom_http_client():
+    redis_host = os.getenv("REDIS_HOST", "localhost")
+    redis_port = int(os.getenv("REDIS_PORT", "6379"))
+
     redis_client = redis.Redis(
-        host="localhost",
-        port=6379,
+        host=redis_host,
+        port=redis_port,
         decode_responses=True,
     )
 
@@ -111,6 +115,8 @@ async def create_charge(client: ResilientHttpClient = Depends(get_custom_http_cl
             "amount": 1000,
             "currency": "usd",
         },
+        max_retries=2,  # Per-request retry limit override
+        timeout=5.0,    # Per-request timeout override
     )
 
     if hasattr(response, "json"):

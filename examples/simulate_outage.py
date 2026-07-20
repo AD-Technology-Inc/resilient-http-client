@@ -36,7 +36,7 @@ async def main():
 
     store = FailureStore(redis_client, "stripe")
 
-    # Ensure clean state for the simulation
+    # Ensure clean state for simulation
     await store.set_state(CircuitState.CLOSED.value)
     await store.reset_failures()
 
@@ -50,17 +50,17 @@ async def main():
         store=store,
         config=config,
     ) as client:
-        # Replace real HTTP layer with failing one
+        # Inject failing HTTP layer
         client.http = AlwaysFailHttpExecutor()
 
         client.fallback.register(
             lambda reason: {
                 "status": "degraded",
-                "reason": reason,
+                "reason": str(reason),
             }
         )
 
-        for i in range(1, 10):
+        for i in range(1, 6):
             print(f"\n--- Request {i} ---")
 
             response = await client.request(

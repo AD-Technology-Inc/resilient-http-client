@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 import redis.asyncio as redis
 
@@ -6,9 +7,12 @@ from resilient_http_client import FailureStore, ResilientHttpClient
 
 
 async def main():
+    redis_host = os.getenv("REDIS_HOST", "localhost")
+    redis_port = int(os.getenv("REDIS_PORT", "6379"))
+
     redis_client = redis.Redis(
-        host="localhost",
-        port=6379,
+        host=redis_host,
+        port=redis_port,
         decode_responses=True,
     )
 
@@ -19,12 +23,11 @@ async def main():
         service=service,
         store=store,
     ) as client:
-        # custom fallback response
         client.fallback.register(
             lambda reason: {
                 "status": "queued",
                 "message": "Slack unavailable, message queued",
-                "reason": reason,
+                "reason": str(reason),
             }
         )
 
@@ -41,9 +44,9 @@ async def main():
         )
 
         if hasattr(response, "json"):
-            print(response.json())
+            print("Response JSON:", response.json())
         else:
-            print(response)
+            print("Response:", response)
 
 
 if __name__ == "__main__":
