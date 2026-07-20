@@ -254,12 +254,18 @@ The library includes a Redis-backed implementation and can be extended with cust
 src/
 └── resilient_http_client/
     ├── __init__.py
-    ├── client.py
     ├── circuit_breaker.py
+    ├── client.py
     ├── config.py
     ├── failure_store.py
     ├── fallback.py
     ├── http.py
+    ├── protocols/
+    │   ├── __init__.py
+    │   ├── failure_store_protocol.py
+    │   ├── fallback_handler_protocol.py
+    │   ├── http_executor_protocol.py
+    │   └── retry_policy_protocol.py
     ├── retry.py
     └── types.py
 
@@ -269,6 +275,7 @@ tests/
 ├── test_fallback.py
 ├── test_flaky_resilience.py
 ├── test_integration.py
+├── test_protocols.py
 └── test_retry_policy.py
 ```
 
