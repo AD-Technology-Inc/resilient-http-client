@@ -99,7 +99,7 @@ class ResilientHttpClient:
         allow = await self.circuit.allow_request()
         if not ignore_circuit and not allow:
             logger.warning(
-                f"Request blocked by Circuit Breaker for {self.service}"
+                f"[{self.service}] Request blocked by Circuit Breaker for {url}"
             )
             return await self._run_fallback("circuit_open", fallback)
 
@@ -116,7 +116,6 @@ class ResilientHttpClient:
                 # 2. Execute Request
                 response = await self.http.send(method, url, **kwargs)
 
-                # Determine if this response represents a circuit failure or retryable error
                 is_circuit_failure = (
                     response.status_code
                     in self.config.circuit_failure_status_codes
@@ -131,7 +130,8 @@ class ResilientHttpClient:
 
                 # Non-success/failure response
                 logger.error(
-                    f"Request failed with status {response.status_code}"
+                    f"[{self.service}] {method} {url} -> "
+                    f"HTTP {response.status_code} (attempt {attempt})"
                 )
                 last_error = response
 
@@ -146,7 +146,10 @@ class ResilientHttpClient:
                 return await self._run_fallback(last_error, fallback)
 
             except Exception as e:
-                logger.error(f"Request error: {str(e)}")
+                logger.error(
+                    f"[{self.service}] Request error | method={method} url={url} "
+                    f"attempt={attempt} error={str(e)}"
+                )
                 last_error = str(e)
 
                 await self.circuit.on_failure()
@@ -156,11 +159,7 @@ class ResilientHttpClient:
                     continue
 
                 # Final failure after retries
-                logger.error(f"All retry attempts exhausted for {self.service}")
+                logger.error(
+                    f"[{self.service}] All retry attempts exhausted for {url}"
+                )
                 return await self._run_fallback(last_error, fallback)
-
-
-
-
-
-

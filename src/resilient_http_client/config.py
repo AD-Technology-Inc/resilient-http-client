@@ -25,4 +25,3 @@ class ResilienceConfig:
     failure_rate_threshold: float = 50.0
     retry_backoff_base: float = 0.1
     retry_max_delay: float = 10.0
-
