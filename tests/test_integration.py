@@ -52,11 +52,7 @@ class FakeRedis:
         lst = self.db[key]
         n = len(lst)
         s = start if start >= 0 else max(0, n + start)
-        e = (
-            stop + 1
-            if stop >= 0
-            else (max(0, n + stop + 1) if stop != -1 else n)
-        )
+        e = stop + 1 if stop >= 0 else (max(0, n + stop + 1) if stop != -1 else n)
         return lst[s:e]
 
     async def zadd(self, key, mapping):
@@ -72,11 +68,7 @@ class FakeRedis:
         f_min = -float("inf") if min_val == "-inf" else float(min_val)
         f_max = float("inf") if max_val == "+inf" else float(max_val)
 
-        to_remove = [
-            member
-            for member, score in self.db[key].items()
-            if f_min <= score <= f_max
-        ]
+        to_remove = [member for member, score in self.db[key].items() if f_min <= score <= f_max]
         for member in to_remove:
             self.db[key].pop(member)
         return len(to_remove)
@@ -88,9 +80,7 @@ class FakeRedis:
         f_max = float("inf") if max_val == "+inf" else float(max_val)
 
         items = [
-            (member, score)
-            for member, score in self.db[key].items()
-            if f_min <= score <= f_max
+            (member, score) for member, score in self.db[key].items() if f_min <= score <= f_max
         ]
         items.sort(key=lambda x: x[1])
         return [member for member, score in items]
@@ -115,9 +105,7 @@ class FakeHttpExecutor:
 
 class FakeResponse(Response):
     def __init__(self, status_code=200):
-        self._data = (
-            {"ok": True} if 200 <= status_code < 300 else {"error": "failed"}
-        )
+        self._data = {"ok": True} if 200 <= status_code < 300 else {"error": "failed"}
         super().__init__(status_code, json=self._data)
 
     def json(self):
@@ -442,9 +430,3 @@ async def test_per_request_timeout_override():
     # Per-request timeout override
     await client.request("GET", "https://api.example.com", timeout=2.5)
     assert captured_kwargs.get("timeout") == 2.5
-
-
-
-
-
-

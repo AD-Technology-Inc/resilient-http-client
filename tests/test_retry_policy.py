@@ -24,7 +24,7 @@ async def test_retry_backoff_waits():
 @pytest.mark.asyncio
 async def test_retry_backoff_respects_custom_config():
     from unittest.mock import AsyncMock, patch
-    
+
     config = ResilienceConfig(
         retry_backoff_base=2.0,
         retry_max_delay=5.0,
@@ -46,4 +46,3 @@ async def test_retry_backoff_respects_custom_config():
         args, _ = mock_sleep.call_args
         actual_delay = args[0]
         assert actual_delay == 5.0
-

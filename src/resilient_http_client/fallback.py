@@ -14,9 +14,7 @@ class FallbackHandler:
     async def run(self, error: Response | str) -> Response:
         if self._fn:
             return (
-                await self._fn(error)
-                if inspect.iscoroutinefunction(self._fn)
-                else self._fn(error)
+                await self._fn(error) if inspect.iscoroutinefunction(self._fn) else self._fn(error)
             )
 
         if isinstance(error, Response):

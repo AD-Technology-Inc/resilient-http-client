@@ -72,9 +72,7 @@ class FakeStore:
 
             now = time.time()
             self.window.append((now, val))
-            self.window = [
-                (t, v) for t, v in self.window if t >= now - window_size
-            ]
+            self.window = [(t, v) for t, v in self.window if t >= now - window_size]
         else:  # COUNT_BASED
             self.window.append(val)
             if len(self.window) > window_size:
@@ -85,9 +83,7 @@ class FakeStore:
             import time
 
             now = time.time()
-            self.window = [
-                (t, v) for t, v in self.window if t >= now - window_size
-            ]
+            self.window = [(t, v) for t, v in self.window if t >= now - window_size]
             total_calls = len(self.window)
             if total_calls == 0:
                 return 0.0, 0
@@ -313,9 +309,7 @@ async def test_half_open_stampede_only_one_probe_allowed(store, breaker):
     store.state = CircuitState.HALF_OPEN.value
 
     # Simulate 10 concurrent workers all calling allow_request at once
-    results = await asyncio.gather(
-        *[breaker.allow_request() for _ in range(10)]
-    )
+    results = await asyncio.gather(*[breaker.allow_request() for _ in range(10)])
 
     allowed = [r for r in results if r is True]
     blocked = [r for r in results if r is False]

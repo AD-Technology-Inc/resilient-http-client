@@ -56,13 +56,9 @@ class CircuitBreaker:
         return True
 
     async def trip_open(self):
-        logger.warning(
-            f"Circuit breaker tripping OPEN for service {self.store.service}"
-        )
+        logger.warning(f"Circuit breaker tripping OPEN for service {self.store.service}")
         # issue: what if this block is interrupted?
-        await self.store.set_state(
-            CircuitState.OPEN.value, ttl=self.config.cooldown
-        )
+        await self.store.set_state(CircuitState.OPEN.value, ttl=self.config.cooldown)
         await self.store.reset_failures()
         await self.store.reset_half_open()
         await self.store.reset_window()
@@ -70,9 +66,7 @@ class CircuitBreaker:
         await self.store.release_probe_token()
 
     async def transition_to_half_open(self):
-        logger.info(
-            f"Circuit breaker transitioning to HALF-OPEN for service {self.store.service}"
-        )
+        logger.info(f"Circuit breaker transitioning to HALF-OPEN for service {self.store.service}")
         await self.store.set_state(CircuitState.HALF_OPEN.value)
         await self.store.reset_half_open()
 

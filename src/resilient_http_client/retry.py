@@ -7,7 +7,6 @@ from .config import ResilienceConfig
 logger = logging.getLogger(__name__)
 
 
-
 class RetryPolicy:
     def __init__(self, config: ResilienceConfig = ResilienceConfig()):
         self.config = config
@@ -22,4 +21,3 @@ class RetryPolicy:
         delay = min(base + jitter, self.config.retry_max_delay)
         logger.info(f"Retrying after {delay:.2f}s (attempt {attempt})")
         await asyncio.sleep(delay)
-

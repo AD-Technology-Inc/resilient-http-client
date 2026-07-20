@@ -29,6 +29,7 @@ from resilient_http_client import (
 # Test Mocks for Conformance Checks
 # ---------------------------------------------------------------------------
 
+
 class ValidCustomExecutor:
     async def send(self, method: str, url: str, **kwargs) -> httpx.Response:
         return httpx.Response(200)
@@ -57,6 +58,7 @@ class ValidCustomFallbackHandler:
 # Protocol Tests
 # ---------------------------------------------------------------------------
 
+
 def test_http_executor_protocol():
     # Built-in conformance
     executor = HttpExecutor(timeout=1.0)
@@ -69,6 +71,7 @@ def test_http_executor_protocol():
     class BrokenExecutor:
         async def send(self, method: str, url: str, **kwargs) -> httpx.Response:
             return httpx.Response(200)
+
         # missing close
 
     assert not isinstance(BrokenExecutor(), HttpExecutorProtocol)
@@ -98,6 +101,7 @@ def test_retry_policy_protocol():
     class BrokenRetryPolicy:
         def can_retry(self, attempt: int) -> bool:
             return True
+
         # missing wait
 
     assert not isinstance(BrokenRetryPolicy(), RetryPolicyProtocol)
@@ -115,6 +119,7 @@ def test_fallback_handler_protocol():
     class BrokenFallbackHandler:
         async def run(self, error: httpx.Response | str) -> httpx.Response:
             return httpx.Response(500)
+
         # missing register
 
     assert not isinstance(BrokenFallbackHandler(), FallbackHandlerProtocol)
@@ -123,6 +128,7 @@ def test_fallback_handler_protocol():
 # ---------------------------------------------------------------------------
 # End-to-End client substitution
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_client_accepts_custom_interfaces():

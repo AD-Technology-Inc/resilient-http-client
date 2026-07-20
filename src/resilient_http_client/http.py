@@ -5,8 +5,6 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
-
-
 class HttpExecutor:
     def __init__(self, timeout: float = 5.0):
         self.timeout = timeout
@@ -22,9 +20,7 @@ class HttpExecutor:
         try:
             return await client.request(method, url, **kwargs)
         except httpx.RequestError as exc:
-            logger.error(
-                f"An error occurred while requesting {exc.request.url!r}."
-            )
+            logger.error(f"An error occurred while requesting {exc.request.url!r}.")
             raise
 
     async def close(self):

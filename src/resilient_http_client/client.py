@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 
 class ResilientHttpClient:
     """
-    Wrapper around an HTTP client that implements resilience patterns such as 
-    Circuit Breaker, Retry, and Fallback. It uses the provided FailureStore to track failures 
+    Wrapper around an HTTP client that implements resilience patterns such as
+    Circuit Breaker, Retry, and Fallback. It uses the provided FailureStore to track failures
     and manage the state of the circuit breaker.
     """
 
@@ -98,9 +98,7 @@ class ResilientHttpClient:
 
         allow = await self.circuit.allow_request()
         if not ignore_circuit and not allow:
-            logger.warning(
-                f"[{self.service}] Request blocked by Circuit Breaker for {url}"
-            )
+            logger.warning(f"[{self.service}] Request blocked by Circuit Breaker for {url}")
             return await self._run_fallback("circuit_open", fallback)
 
         attempt = 0
@@ -117,12 +115,9 @@ class ResilientHttpClient:
                 response = await self.http.send(method, url, **kwargs)
 
                 is_circuit_failure = (
-                    response.status_code
-                    in self.config.circuit_failure_status_codes
+                    response.status_code in self.config.circuit_failure_status_codes
                 )
-                is_retryable = (
-                    response.status_code in self.config.retry_status_codes
-                )
+                is_retryable = response.status_code in self.config.retry_status_codes
 
                 if not is_circuit_failure and not is_retryable:
                     await self.circuit.on_success()
@@ -159,7 +154,5 @@ class ResilientHttpClient:
                     continue
 
                 # Final failure after retries
-                logger.error(
-                    f"[{self.service}] All retry attempts exhausted for {url}"
-                )
+                logger.error(f"[{self.service}] All retry attempts exhausted for {url}")
                 return await self._run_fallback(last_error, fallback)

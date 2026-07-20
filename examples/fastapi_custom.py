@@ -116,7 +116,7 @@ async def create_charge(client: ResilientHttpClient = Depends(get_custom_http_cl
             "currency": "usd",
         },
         max_retries=2,  # Per-request retry limit override
-        timeout=5.0,    # Per-request timeout override
+        timeout=5.0,  # Per-request timeout override
     )
 
     if hasattr(response, "json"):

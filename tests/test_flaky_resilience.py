@@ -62,19 +62,16 @@ class FakeRedis:
     async def zremrangebyscore(self, key, min_score, max_score):
         zset = self.db.get(key, {})
         to_remove = [
-            k for k, v in zset.items()
-            if (min_score == "-inf" or v >= float(min_score))
-            and v <= float(max_score)
+            k
+            for k, v in zset.items()
+            if (min_score == "-inf" or v >= float(min_score)) and v <= float(max_score)
         ]
         for k in to_remove:
             del zset[k]
 
     async def zrangebyscore(self, key, min_score, max_score):
         zset = self.db.get(key, {})
-        return [
-            k for k, v in zset.items()
-            if v >= float(min_score) and v <= float(max_score)
-        ]
+        return [k for k, v in zset.items() if v >= float(min_score) and v <= float(max_score)]
 
 
 # -----------------------------
@@ -159,15 +156,11 @@ async def test_flaky_upstream_resilience():
     assert len(results) == 30
 
     # successes should exist
-    successes = [
-        r for r in results if hasattr(r, "json") and r.json().get("ok") is True
-    ]
+    successes = [r for r in results if hasattr(r, "json") and r.json().get("ok") is True]
     assert len(successes) > 0
 
     # failures should exist due to upstream instability (returned as degraded responses)
-    failures = [
-        r for r in results if hasattr(r, "status_code") and r.status_code == 503
-    ]
+    failures = [r for r in results if hasattr(r, "status_code") and r.status_code == 503]
     assert len(failures) > 0
 
     # executor must have been exercised — but the stampede guard means the
@@ -225,9 +218,7 @@ class ChaosHttpExecutor:
             # behaviour is the exception that simulates the upstream timeout.
             delay = float(params.get("delay_secs", ["0.01"])[0])
             await asyncio.sleep(delay)
-            raise Exception(
-                f"upstream timeout after {delay:.3f}s delay spike"
-            )
+            raise Exception(f"upstream timeout after {delay:.3f}s delay spike")
 
         if chaos == "error":
             return MockResponse(
@@ -268,9 +259,7 @@ async def test_chaos_delay_spike_triggers_circuit_failures():
     # Three sequential delay-spike requests — each raises a timeout exception
     # and is treated as a circuit failure.
     for _ in range(3):
-        await client.request(
-            "GET", "http://downstream/?chaos=delay&delay_secs=0.001"
-        )
+        await client.request("GET", "http://downstream/?chaos=delay&delay_secs=0.001")
 
     assert await client.circuit.is_open(), (
         "Circuit must trip after repeated upstream timeout spikes"
@@ -313,10 +302,7 @@ async def test_flood_concurrent_trips_at_50pct_threshold():
     client.http = executor
 
     # ── Phase 1: Flood with injected 500 errors ──────────────────────────────
-    flood_tasks = [
-        client.request("GET", "http://downstream/?chaos=error")
-        for _ in range(200)
-    ]
+    flood_tasks = [client.request("GET", "http://downstream/?chaos=error") for _ in range(200)]
     await asyncio.gather(*flood_tasks, return_exceptions=True)
 
     # Circuit must have tripped once the sliding window accumulated ≥5 calls
@@ -336,10 +322,7 @@ async def test_flood_concurrent_trips_at_50pct_threshold():
     # ── Phase 2: Verify zero network calls when circuit is open ──────────────
     calls_before_phase2 = executor.calls
 
-    drop_tasks = [
-        client.request("GET", "http://downstream/")
-        for _ in range(50)
-    ]
+    drop_tasks = [client.request("GET", "http://downstream/") for _ in range(50)]
     await asyncio.gather(*drop_tasks, return_exceptions=True)
 
     assert executor.calls == calls_before_phase2, (

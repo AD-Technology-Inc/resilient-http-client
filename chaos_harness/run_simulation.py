@@ -77,9 +77,7 @@ async def main():
 
     # Fallback should return 503 for all dropped requests
     if not all(status == 503 for status in open_results):
-        logger.error(
-            "TEST FAILED: Some requests were not intercepted by the circuit breaker!"
-        )
+        logger.error("TEST FAILED: Some requests were not intercepted by the circuit breaker!")
         sys.exit(1)
 
     logger.info(
