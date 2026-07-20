@@ -391,3 +391,33 @@ async def test_client_time_based_sliding_window_tripping():
     res = await client.request("GET", "https://api.example.com")
     assert res.status_code == 503
     assert res.json()["message"] == "circuit_open"
+
+
+@pytest.mark.asyncio
+async def test_per_request_max_retries_and_fallback_override():
+    redis = FakeRedis()
+    store = FailureStore(redis, "stripe")
+    # Base config: 0 retries
+    config = ResilienceConfig(max_retries=0)
+    client = ResilientHttpClient(service="stripe", store=store, config=config)
+
+    executor = FakeHttpExecutor(status_code=500)
+    client.http = executor
+
+    # Per-request fallback override directly in request()
+    result = await client.request(
+        "GET",
+        "https://api.example.com",
+        fallback=lambda err: {"per_request_fallback": True, "err": str(err)},
+    )
+    assert result["per_request_fallback"] is True
+    assert "500" in str(result["err"])
+
+    # Per-request max_retries override directly in request() (overriding 0 to 2)
+    executor.calls = 0
+    await client.request("GET", "https://api.example.com", max_retries=2)
+    assert executor.calls == 3  # Initial + 2 retries
+
+
+
+

@@ -1,4 +1,6 @@
+import inspect
 import logging
+from typing import Any, Callable
 
 import httpx
 
@@ -22,8 +24,6 @@ class ResilientHttpClient:
     Wrapper around an HTTP client that implements resilience patterns such as 
     Circuit Breaker, Retry, and Fallback. It uses the provided FailureStore to track failures 
     and manage the state of the circuit breaker.
-
-    issue: it should be possible to customize HttpExecutor failure handling (is_success)
     """
 
     def __init__(
@@ -50,16 +50,65 @@ class ResilientHttpClient:
     async def close(self):
         await self.http.close()
 
-    async def request(self, method: str, url: str, **kwargs) -> httpx.Response:
-        # 1. Check Circuit Breaker
-        if not await self.circuit.allow_request():
+    async def _run_fallback(
+        self,
+        error: httpx.Response | str,
+        custom_fallback: Callable[[httpx.Response | str], Any] | None = None,
+    ) -> Any:
+        if custom_fallback is not None:
+            return (
+                await custom_fallback(error)
+                if inspect.iscoroutinefunction(custom_fallback)
+                else custom_fallback(error)
+            )
+        return await self.fallback.run(error)
+
+    async def request(
+        self,
+        method: str,
+        url: str,
+        max_retries: int | None = None,
+        timeout: float | httpx.Timeout | None = None,
+        fallback: Callable[[httpx.Response | str], Any] | None = None,
+        ignore_circuit: bool = False,
+        **kwargs,
+    ) -> Any:
+        """
+        Execute an asynchronous HTTP request with resilience guarantees.
+
+        Parameters
+        ----------
+        method : str
+            HTTP method (GET, POST, PUT, DELETE, etc.)
+        url : str
+            Target URL
+        max_retries : int | None
+            Per-request retry count override.
+        timeout : float | httpx.Timeout | None
+            Per-request socket timeout override.
+        fallback : Callable | None
+            Per-request fallback handler override.
+        ignore_circuit : bool
+            If True, bypasses the circuit breaker state check.
+        **kwargs
+            Keyword arguments passed directly to the HTTP executor (json, headers, etc.).
+        """
+        if timeout is not None:
+            kwargs["timeout"] = timeout
+
+        allow = await self.circuit.allow_request()
+        if not ignore_circuit and not allow:
             logger.warning(
                 f"Request blocked by Circuit Breaker for {self.service}"
             )
-            return await self.fallback.run("circuit_open")
+            return await self._run_fallback("circuit_open", fallback)
 
         attempt = 0
-        last_error = ""
+
+        def _can_retry(curr_attempt: int) -> bool:
+            if max_retries is not None:
+                return curr_attempt <= max_retries
+            return self.retry.can_retry(curr_attempt)
 
         while True:
             attempt += 1
@@ -89,12 +138,12 @@ class ResilientHttpClient:
                 if is_circuit_failure:
                     await self.circuit.on_failure()
 
-                if is_retryable and self.retry.can_retry(attempt):
+                if is_retryable and _can_retry(attempt):
                     await self.retry.wait(attempt)
                     continue
 
                 # Final failure: either not retryable or retries exhausted
-                return await self.fallback.run(last_error)
+                return await self._run_fallback(last_error, fallback)
 
             except Exception as e:
                 logger.error(f"Request error: {str(e)}")
@@ -102,10 +151,16 @@ class ResilientHttpClient:
 
                 await self.circuit.on_failure()
 
-                if self.retry.can_retry(attempt):
+                if _can_retry(attempt):
                     await self.retry.wait(attempt)
                     continue
 
                 # Final failure after retries
                 logger.error(f"All retry attempts exhausted for {self.service}")
-                return await self.fallback.run(last_error)
+                return await self._run_fallback(last_error, fallback)
+
+
+
+
+
+
