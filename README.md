@@ -330,7 +330,8 @@ The `examples/` directory contains complete demonstrations and integrations.
    ```
 
 Available examples:
-* `fastapi_integration.py`
+* `fastapi_simple.py`
+* `fastapi_custom.py`
 * `simulate_outage.py`
 * `slack_example.py`
 * `stripe_example.py`

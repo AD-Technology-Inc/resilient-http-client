@@ -3,37 +3,33 @@ from fastapi import Depends, FastAPI
 
 from resilient_http_client import FailureStore, ResilientHttpClient
 
-app = FastAPI()
+app = FastAPI(title="Simple Resilient FastAPI Service")
 
 
-async def http_client():
+async def get_http_client():
     redis_client = redis.Redis(
         host="localhost",
         port=6379,
         decode_responses=True,
     )
 
-    service = "stripe"
+    service = "payment_service"
     store = FailureStore(redis_client, service)
 
-    async with ResilientHttpClient(
-        service=service,
-        store=store,
-    ) as client:
+    async with ResilientHttpClient(service=service, store=store) as client:
         client.fallback.register(
             lambda reason: {
                 "status": "degraded",
-                "message": "Payment provider unavailable",
-                "reason": reason,
+                "message": "Payment service temporarily unavailable",
+                "reason": str(reason),
             }
         )
-
         yield client
 
 
 @app.post("/charge")
-async def create_charge(http: ResilientHttpClient = Depends(http_client)):
-    response = await http.request(
+async def create_charge(client: ResilientHttpClient = Depends(get_http_client)):
+    response = await client.request(
         method="POST",
         url="https://api.stripe.com/v1/payment_intents",
         headers={"Authorization": "Bearer sk_test_xxx"},
