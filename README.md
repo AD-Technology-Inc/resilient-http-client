@@ -181,6 +181,22 @@ client = ResilientHttpClient(
 )
 ```
 
+### 🎛️ Per-Request Overrides
+
+You can override `max_retries`, `timeout`, `fallback`, or `ignore_circuit` directly on individual request calls without altering global client configuration:
+
+```python
+response = await client.request(
+    method="POST",
+    url="https://api.stripe.com/v1/charges",
+    json={"amount": 2000, "currency": "usd"},
+    max_retries=5,                            # Custom retries for high-priority request
+    timeout=2.0,                              # Tight timeout override in seconds
+    fallback=lambda err: {"degraded": True},  # Custom fallback callback
+    ignore_circuit=False,                     # Bypass circuit breaker check if True
+)
+```
+
 ### Configuration Reference
 
 | Parameter                      | Type       | Default | Description                                                                                |
@@ -232,6 +248,24 @@ Fallbacks are executed when:
 * The circuit is open.
 * Retry attempts are exhausted.
 * A non-retryable failure occurs.
+
+### Pluggable Protocols
+
+All core resilience components satisfy runtime-checkable Python `Protocol` interfaces. You can easily plug in custom implementations or type-hint dependencies:
+
+* `FailureStoreProtocol` — Custom state backends (Redis, Memcached, DynamoDB).
+* `HttpExecutorProtocol` — Custom HTTP transports or mock executors.
+* `RetryPolicyProtocol` — Custom backoff strategies (jitter, linear, fixed).
+* `FallbackHandlerProtocol` — Custom fallback execution logic.
+
+```python
+from resilient_http_client import (
+    FailureStoreProtocol,
+    HttpExecutorProtocol,
+    RetryPolicyProtocol,
+    FallbackHandlerProtocol,
+)
+```
 
 ### Failure Store
 
